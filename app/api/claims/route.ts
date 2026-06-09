@@ -13,6 +13,7 @@ import {
   parseClaimJson,
 } from '@/lib/parse-claim-form';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { scheduleAiAnalysis } from '@/lib/schedule-ai';
 import { saveUploadedFiles } from '@/lib/uploads';
 
 export const dynamic = 'force-dynamic';
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
       const { documents, ...fields } = parsed;
 
       const claim = await createClaim(fields, documents);
+      scheduleAiAnalysis(claim._id);
       logger.info('Claim submitted via JSON', { claimId: claim._id, ip });
 
       return NextResponse.json(
@@ -89,6 +91,7 @@ export async function POST(request: Request) {
       await updateClaimDocuments(claim._id, savedPaths);
     }
 
+    scheduleAiAnalysis(claim._id);
     logger.info('Claim submitted via form', { claimId: claim._id, ip });
 
     return NextResponse.json(

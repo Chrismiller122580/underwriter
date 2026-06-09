@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server';
-import {
-  canUnderwrite,
-  getSessionFromCookies,
-} from '@/lib/auth';
-import {
-  isValidClaimId,
-  underwriteClaimById,
-} from '@/lib/claims-store';
+import { canUnderwrite, getSessionFromCookies } from '@/lib/auth';
+import { isValidClaimId, runAiAnalysis } from '@/lib/claims-store';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -28,33 +22,29 @@ export async function POST(_request: Request, context: RouteContext) {
   }
 
   try {
-    const outcome = await underwriteClaimById(id);
+    const outcome = await runAiAnalysis(id);
     if (!outcome) {
       return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
     }
 
-    const { claim, result, aiAnalysis } = outcome;
-
-    logger.info('Claim underwritten', {
+    logger.info('AI analysis completed', {
       claimId: id,
-      decision: result.decision,
-      role: session.role,
+      riskScore: outcome.analysis.riskScore,
+      recommendation: outcome.analysis.recommendation,
+      model: outcome.analysis.model,
     });
 
     return NextResponse.json({
-      id: claim._id,
-      decision: result.decision,
-      reason: result.reason,
-      status: claim.status,
-      aiAnalysis,
+      id: outcome.claim._id,
+      aiAnalysis: outcome.analysis,
     });
   } catch (error) {
-    logger.error('Underwrite failed', {
+    logger.error('AI analysis failed', {
       claimId: id,
       error: error instanceof Error ? error.message : 'unknown',
     });
     return NextResponse.json(
-      { error: 'Failed to underwrite claim' },
+      { error: 'AI analysis failed' },
       { status: 500 }
     );
   }

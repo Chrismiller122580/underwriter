@@ -2,10 +2,11 @@ import { ensureSchema, getSql } from '@/lib/db';
 import type { ParsedClaimForm } from '@/lib/parse-claim-form';
 import { buildClaimDocument } from '@/lib/parse-claim-form';
 import {
-  mapDecisionToStatus,
-  underwriteClaim,
-  type UnderwritingResult,
-} from '@/lib/underwrite';
+  analyzeClaimWithAi,
+  combineDecisions,
+} from '@/lib/ai-underwrite';
+import type { AiAnalysis } from '@/lib/ai-types';
+import { underwriteClaim, type UnderwritingResult } from '@/lib/underwrite';
 
 export type ClaimRecord = {
   _id: string;
@@ -48,6 +49,7 @@ export type ClaimRecord = {
     reason?: string;
     reviewedAt?: string;
   };
+  aiAnalysis?: AiAnalysis;
   createdAt: string;
   updatedAt: string;
 };
@@ -62,6 +64,7 @@ type ClaimRow = {
   claim_details: ClaimRecord['claimDetails'];
   status: string;
   underwriting: ClaimRecord['underwriting'] | null;
+  ai_analysis: AiAnalysis | null;
   created_at: string;
   updated_at: string;
 };
@@ -77,6 +80,7 @@ function mapRow(row: ClaimRow): ClaimRecord {
     claimDetails: row.claim_details,
     status: row.status,
     underwriting: row.underwriting ?? undefined,
+    aiAnalysis: row.ai_analysis ?? undefined,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
   };
@@ -137,6 +141,24 @@ export async function updateClaimDocuments(
   return mapRow(rows[0]);
 }
 
+export async function saveAiAnalysis(
+  id: string,
+  analysis: AiAnalysis
+): Promise<ClaimRecord> {
+  await ensureSchema();
+  const sql = getSql();
+
+  const rows = (await sql`
+    UPDATE claims
+    SET ai_analysis = ${JSON.stringify(analysis)}::jsonb,
+        updated_at = NOW()
+    WHERE id = ${id}::uuid
+    RETURNING *
+  `) as ClaimRow[];
+
+  return mapRow(rows[0]);
+}
+
 export async function getClaimById(id: string): Promise<ClaimRecord | null> {
   await ensureSchema();
   const sql = getSql();
@@ -155,31 +177,50 @@ export function isValidClaimId(id: string): boolean {
   return UUID_RE.test(id);
 }
 
-export async function underwriteClaimById(
+export async function runAiAnalysis(
   id: string
-): Promise<{ claim: ClaimRecord; result: UnderwritingResult } | null> {
+): Promise<{ claim: ClaimRecord; analysis: AiAnalysis } | null> {
   const claim = await getClaimById(id);
   if (!claim) return null;
 
-  const result = underwriteClaim({
+  const analysis = await analyzeClaimWithAi(claim);
+  const updated = await saveAiAnalysis(id, analysis);
+
+  return { claim: updated, analysis };
+}
+
+export async function underwriteClaimById(
+  id: string
+): Promise<{
+  claim: ClaimRecord;
+  result: UnderwritingResult;
+  aiAnalysis: AiAnalysis;
+} | null> {
+  const claim = await getClaimById(id);
+  if (!claim) return null;
+
+  const ruleResult = underwriteClaim({
     policyEffectiveDate: new Date(claim.policyInformation.policyEffectiveDate),
     policyExpirationDate: new Date(claim.policyInformation.policyExpirationDate),
     dateOfLoss: new Date(claim.incidentDetails.dateOfLoss),
     repairEstimate: claim.repairInformation.repairEstimate,
   });
 
-  const status = mapDecisionToStatus(result.decision);
-  const underwriting = JSON.stringify({
-    decision: result.decision,
-    reason: result.reason,
+  const aiAnalysis = await analyzeClaimWithAi(claim);
+  const combined = combineDecisions(ruleResult.decision, aiAnalysis);
+
+  const underwriting = {
+    decision: combined.decision === 'under_review' ? 'pending' : combined.decision,
+    reason: combined.reason,
     reviewedAt: new Date().toISOString(),
-  });
+  };
 
   const sql = getSql();
   const rows = (await sql`
     UPDATE claims
-    SET status = ${status},
-        underwriting = ${underwriting}::jsonb,
+    SET status = ${combined.decision},
+        underwriting = ${JSON.stringify(underwriting)}::jsonb,
+        ai_analysis = ${JSON.stringify(aiAnalysis)}::jsonb,
         updated_at = NOW()
     WHERE id = ${id}::uuid
     RETURNING *
@@ -187,6 +228,13 @@ export async function underwriteClaimById(
 
   return {
     claim: mapRow(rows[0]),
-    result,
+    result: {
+      decision:
+        combined.decision === 'under_review'
+          ? 'pending'
+          : combined.decision,
+      reason: combined.reason,
+    },
+    aiAnalysis,
   };
 }

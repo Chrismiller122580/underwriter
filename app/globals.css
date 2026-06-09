@@ -413,3 +413,100 @@ a {
   font: inherit;
   padding: 0;
 }
+
+/* AI insights */
+.claim-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.ai-insights {
+  margin-top: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f0f4ff 0%, #f8f9fc 100%);
+  border: 1px solid #d0daf0;
+  border-radius: 8px;
+}
+
+.ai-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.ai-badge {
+  background: #4a3fbf;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.risk-score {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.risk-low { background: #e6f4ec; color: #1b7f4e; }
+.risk-medium { background: #fff3cd; color: #9a6b00; }
+.risk-high { background: #fde8e8; color: #b00020; }
+
+.ai-confidence {
+  font-size: 12px;
+  color: #666;
+}
+
+.ai-summary {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 8px;
+}
+
+.ai-reasoning {
+  font-size: 13px;
+  color: #555;
+  margin: 0 0 8px;
+  font-style: italic;
+}
+
+.ai-recommendation {
+  font-size: 14px;
+  margin: 0 0 10px;
+}
+
+.ai-flags,
+.ai-fraud {
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.ai-flags ul,
+.ai-fraud ul {
+  margin: 4px 0 0;
+  padding-left: 20px;
+}
+
+.ai-fraud {
+  color: #b00020;
+}
+
+.ai-model {
+  font-size: 11px;
+  color: #999;
+  margin: 10px 0 0;
+}
+
+.action-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}

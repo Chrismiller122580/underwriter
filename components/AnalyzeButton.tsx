@@ -1,25 +1,23 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-export function UnderwriteButton({
+export function AnalyzeButton({
   claimId,
   onComplete,
 }: {
   claimId: string;
   onComplete?: () => void;
 }) {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleUnderwrite() {
+  async function handleAnalyze() {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/claims/${claimId}/underwrite`, {
+      const response = await fetch(`/api/claims/${claimId}/analyze`, {
         method: 'POST',
       });
 
@@ -30,13 +28,12 @@ export function UnderwriteButton({
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? 'Underwriting failed');
+        throw new Error(body.error ?? 'AI analysis failed');
       }
 
       onComplete?.();
-      router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Underwriting failed');
+      setError(err instanceof Error ? err.message : 'AI analysis failed');
     } finally {
       setLoading(false);
     }
@@ -46,11 +43,11 @@ export function UnderwriteButton({
     <div>
       <button
         type="button"
-        className="button button-sm"
-        onClick={handleUnderwrite}
+        className="button button-secondary button-sm"
+        onClick={handleAnalyze}
         disabled={loading}
       >
-        {loading ? 'AI Underwriting…' : 'AI Underwrite'}
+        {loading ? 'Analyzing…' : 'Run AI Scan'}
       </button>
       {error && <p className="field-error">{error}</p>}
     </div>

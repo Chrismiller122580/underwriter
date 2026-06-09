@@ -3,6 +3,19 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { UnderwriteButton } from '@/app/claims/UnderwriteButton';
+import { AiInsights } from './AiInsights';
+import { AnalyzeButton } from './AnalyzeButton';
+
+type AiAnalysis = {
+  summary: string;
+  riskScore: number;
+  recommendation: string;
+  reasoning: string;
+  flags: string[];
+  fraudIndicators: string[];
+  confidence: number;
+  model: string;
+};
 
 type Claim = {
   _id: string;
@@ -13,6 +26,7 @@ type Claim = {
   policyInformation: { policyNumber: string };
   claimDetails: { amount: number; documents?: string[] };
   underwriting?: { reason?: string; decision?: string };
+  aiAnalysis?: AiAnalysis;
 };
 
 function statusClass(status: string) {
@@ -22,6 +36,12 @@ function statusClass(status: string) {
 function formatDate(value?: string) {
   if (!value) return '—';
   return new Date(value).toLocaleDateString();
+}
+
+function riskBadge(score: number) {
+  if (score >= 8) return 'risk-high';
+  if (score >= 5) return 'risk-medium';
+  return 'risk-low';
 }
 
 export function ClaimsDashboard() {
@@ -56,6 +76,7 @@ export function ClaimsDashboard() {
     pending: claims.filter((c) => c.status === 'pending').length,
     approved: claims.filter((c) => c.status === 'approved').length,
     denied: claims.filter((c) => c.status === 'denied').length,
+    highRisk: claims.filter((c) => (c.aiAnalysis?.riskScore ?? 0) >= 7).length,
   };
 
   if (loading) {
@@ -80,6 +101,7 @@ export function ClaimsDashboard() {
         <StatCard label="Pending" value={stats.pending} tone="pending" />
         <StatCard label="Approved" value={stats.approved} tone="approved" />
         <StatCard label="Denied" value={stats.denied} tone="denied" />
+        <StatCard label="High Risk" value={stats.highRisk} tone="denied" />
       </div>
 
       {claims.length === 0 ? (
@@ -98,9 +120,18 @@ export function ClaimsDashboard() {
                     {claim.vehicleInfo.model} · VIN {claim.vehicleInfo.vin}
                   </p>
                 </div>
-                <span className={statusClass(claim.status)}>
-                  {claim.status.replace('_', ' ')}
-                </span>
+                <div className="claim-badges">
+                  {claim.aiAnalysis && (
+                    <span
+                      className={`risk-score ${riskBadge(claim.aiAnalysis.riskScore)}`}
+                    >
+                      AI Risk {claim.aiAnalysis.riskScore}/10
+                    </span>
+                  )}
+                  <span className={statusClass(claim.status)}>
+                    {claim.status.replace('_', ' ')}
+                  </span>
+                </div>
               </div>
 
               <dl className="claim-details">
@@ -122,13 +153,26 @@ export function ClaimsDashboard() {
                 </div>
               </dl>
 
-              {claim.underwriting?.reason && (
+              {claim.aiAnalysis && <AiInsights analysis={claim.aiAnalysis} />}
+
+              {claim.underwriting?.reason && !claim.aiAnalysis && (
                 <p className="underwriting-note">{claim.underwriting.reason}</p>
               )}
 
               <div className="claim-card-actions">
                 {claim.status === 'pending' ? (
-                  <UnderwriteButton claimId={claim._id} onComplete={loadClaims} />
+                  <div className="action-row">
+                    {!claim.aiAnalysis && (
+                      <AnalyzeButton
+                        claimId={claim._id}
+                        onComplete={loadClaims}
+                      />
+                    )}
+                    <UnderwriteButton
+                      claimId={claim._id}
+                      onComplete={loadClaims}
+                    />
+                  </div>
                 ) : (
                   <span className="done-label">Underwriting complete</span>
                 )}

@@ -7,8 +7,8 @@ export default function ClaimsPage() {
       <div className="card">
         <div className="page-header">
           <div>
-            <p className="badge">Claims Dashboard</p>
-            <h1 style={{ marginTop: 12 }}>All Claims</h1>
+            <p className="badge">AI-Powered Dashboard</p>
+            <h1 style={{ marginTop: 12 }}>Claims Intelligence</h1>
           </div>
           <Link href="/submit" className="button">
             Submit New Claim

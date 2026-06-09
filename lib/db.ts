@@ -48,5 +48,9 @@ export async function ensureSchema(): Promise<void> {
     )
   `;
 
+  await sql`
+    ALTER TABLE claims ADD COLUMN IF NOT EXISTS ai_analysis JSONB
+  `;
+
   schemaReady = true;
 }

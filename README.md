@@ -14,7 +14,8 @@ Vehicle warranty claims intake, document upload, and automated policy underwriti
 | **Adjuster auth** | Password-protected dashboard and underwriting |
 | **Rate limiting** | 10 claim submissions per hour per IP |
 | **Structured logging** | JSON logs (visible in Vercel Runtime Logs) |
-| **Auto underwriting** | Policy date validation on pending claims |
+| **AI underwriting** | GPT risk scoring, fraud detection, smart recommendations |
+| **Auto analysis** | Background AI scan on every new claim submission |
 
 ---
 
@@ -52,6 +53,8 @@ npm run dev
 | `AUTH_SECRET` | Random 32+ char string (`openssl rand -base64 32`) | Yes |
 | `ADJUSTER_PASSWORD` | Strong production password | Yes |
 | `SUPERVISOR_PASSWORD` | Supervisor password (optional) | No |
+| `OPENAI_API_KEY` | OpenAI API key for GPT analysis | Yes (prod) |
+| `AI_MODEL` | Model name (default `gpt-4o-mini`) | No |
 
 `POSTGRES_URL` and `BLOB_READ_WRITE_TOKEN` are set automatically by Vercel Storage.
 
@@ -71,7 +74,8 @@ npm run dev
 |-------|------|-------------|
 | `POST /api/claims` | Public (rate limited) | Submit claim |
 | `GET /api/claims` | Adjuster | List claims |
-| `POST /api/claims/:id/underwrite` | Adjuster | Run underwriting |
+| `POST /api/claims/:id/underwrite` | Adjuster | AI + rule-based underwriting |
+| `POST /api/claims/:id/analyze` | Adjuster | Run/re-run AI analysis |
 | `POST /api/auth/login` | Public | Sign in |
 | `POST /api/auth/logout` | Public | Sign out |
 | `GET /api/auth/session` | Public | Check session |

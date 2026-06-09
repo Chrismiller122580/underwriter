@@ -30,8 +30,8 @@ export default function HomePage() {
             <p>Attach ownership proof, maintenance records, and inspection reports.</p>
           </div>
           <div className="feature-card">
-            <h3>Auto Underwriting</h3>
-            <p>Policy date validation and claim approval workflow built in.</p>
+            <h3>AI Underwriting</h3>
+            <p>GPT-powered risk scoring, fraud detection, and smart approve/deny recommendations.</p>
           </div>
         </div>
       </div>

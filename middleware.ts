@@ -12,7 +12,7 @@ export async function middleware(request: NextRequest) {
   const isProtectedPage = pathname.startsWith('/claims');
   const isProtectedApi =
     (pathname === '/api/claims' && request.method === 'GET') ||
-    (pathname.match(/^\/api\/claims\/[^/]+\/underwrite$/) &&
+    (pathname.match(/^\/api\/claims\/[^/]+\/(underwrite|analyze)$/) &&
       request.method === 'POST');
 
   if (!isProtectedPage && !isProtectedApi) {
