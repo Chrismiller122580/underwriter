@@ -61,6 +61,11 @@ export function AppNav() {
   const isAuthenticated = Boolean(session?.authenticated);
   const isSupervisor = session?.role === 'supervisor';
   const isPublicHome = pathname === '/';
+  const isLoginPage = pathname === '/login';
+
+  if (isLoginPage) {
+    return null;
+  }
 
   if (isPublicHome && sessionLoaded && !isAuthenticated) {
     return null;
