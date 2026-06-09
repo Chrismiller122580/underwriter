@@ -1,7 +1,7 @@
 import { createXai } from '@ai-sdk/xai';
 
 export function getXaiApiKey(): string | undefined {
-  return process.env.XAI_API_KEY ?? process.env.GROK_API_KEY;
+  return process.env.GROK_API_KEY ?? process.env.XAI_API_KEY;
 }
 
 export function getTextModelId(): string {
@@ -22,7 +22,7 @@ export function requireXaiProvider() {
   const provider = getXaiProvider();
   if (!provider) {
     throw new Error(
-      'XAI_API_KEY is required for Grok AI features. Add it in Vercel env settings (console.x.ai).'
+      'GROK_API_KEY is required for Grok AI features. Add it in Vercel env settings (console.x.ai).'
     );
   }
   return provider;

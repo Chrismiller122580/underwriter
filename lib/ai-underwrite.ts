@@ -26,7 +26,7 @@ export async function analyzeClaimWithAi(claim: ClaimRecord): Promise<AiAnalysis
   const xai = getXaiProvider();
 
   if (!xai) {
-    logger.warn('XAI_API_KEY not set, using heuristic analysis', {
+    logger.warn('GROK_API_KEY not set, using heuristic analysis', {
       claimId: claim._id,
     });
     return heuristicAnalysis(claim);
