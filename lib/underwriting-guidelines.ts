@@ -56,6 +56,12 @@ ${UNDERWRITING_GUIDELINES}
 ${buildContractContext(contractType, variant)}
 
 Recommend "deny" for clear policy violations (invalid contract, waiting period, non-covered component, maintenance failure).
-Recommend "review" for ambiguous cases, large claims, or inspection triggers.
-Recommend "approve" only when claim clearly meets contract terms and guidelines.`;
+Recommend "review" for ambiguous cases, large claims, inspection triggers, or when required information is missing.
+Recommend "approve" only when claim clearly meets contract terms and guidelines.
+
+Supporting documents are OPTIONAL at submission. When documents or facts are missing:
+- List specific items in informationRequests (e.g. maintenance records to verify oil-change schedule).
+- Explain in guidelineConflicts how missing information relates to underwriting rules, or state conflicts found in the claim data.
+- Do not deny solely because optional documents were not uploaded at intake — request them first unless guidelines require denial without them.
+- Prefer "review" over "approve" when missing information prevents confident coverage or maintenance validation.`;
 }

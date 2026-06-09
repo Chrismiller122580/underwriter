@@ -484,15 +484,27 @@ a {
 }
 
 .ai-flags,
-.ai-fraud {
+.ai-fraud,
+.ai-info-requests,
+.ai-guideline-conflicts {
   font-size: 13px;
   margin-top: 8px;
 }
 
 .ai-flags ul,
-.ai-fraud ul {
+.ai-fraud ul,
+.ai-info-requests ul,
+.ai-guideline-conflicts ul {
   margin: 4px 0 0;
   padding-left: 20px;
+}
+
+.ai-info-requests {
+  color: #1a4d8f;
+}
+
+.ai-guideline-conflicts {
+  color: #8a5a00;
 }
 
 .ai-fraud {

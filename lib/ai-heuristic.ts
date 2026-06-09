@@ -1,9 +1,47 @@
 import type { ClaimRecord } from '@/lib/claims-store';
 import type { AiAnalysis } from '@/lib/ai-types';
+import { FILE_FIELD_LABELS, FILE_FIELDS } from '@/lib/parse-claim-form';
+
+function missingDocumentRequests(claim: ClaimRecord): string[] {
+  const attached = claim.claimDetails.attachedDocuments ?? {};
+  const requests: string[] = [];
+
+  for (const field of FILE_FIELDS) {
+    if (attached[field]) continue;
+
+    switch (field) {
+      case 'maintenanceRecords':
+      case 'serviceHistory':
+        requests.push(
+          `Please provide ${FILE_FIELD_LABELS[field]} to verify maintenance requirements under Freedom Warranty guidelines.`
+        );
+        break;
+      case 'inspectionReports':
+        requests.push(
+          `Please provide ${FILE_FIELD_LABELS[field]} if available to support component failure assessment.`
+        );
+        break;
+      case 'priorClaimsHistory':
+        requests.push(
+          `Please provide ${FILE_FIELD_LABELS[field]} to confirm the component was not previously replaced.`
+        );
+        break;
+      case 'proofOfOwnership':
+        requests.push(
+          `Please provide ${FILE_FIELD_LABELS[field]} to verify vehicle ownership if not already on file.`
+        );
+        break;
+    }
+  }
+
+  return requests;
+}
 
 export function heuristicAnalysis(claim: ClaimRecord): AiAnalysis {
   const flags: string[] = [];
   const fraudIndicators: string[] = [];
+  const guidelineConflicts: string[] = [];
+  const informationRequests = missingDocumentRequests(claim);
   let riskScore = 3;
 
   const now = new Date();
@@ -13,14 +51,18 @@ export function heuristicAnalysis(claim: ClaimRecord): AiAnalysis {
   const vehicleAge = now.getFullYear() - claim.vehicleInfo.year;
   const estimate = claim.repairInformation.repairEstimate;
   const desc = claim.incidentDetails.descriptionOfIncident.toLowerCase();
+  const repairDesc = claim.repairInformation.detailedRepairDescription.toLowerCase();
+  const attachedCount = Object.keys(claim.claimDetails.attachedDocuments ?? {}).length;
 
   if (now < effective || now > expiration) {
     flags.push('Policy is not currently active');
+    guidelineConflicts.push('Claim filed outside active contract period per validity rules.');
     riskScore += 3;
   }
 
   if (lossDate < effective || lossDate > expiration) {
     flags.push('Date of loss falls outside policy period');
+    guidelineConflicts.push('Date of loss conflicts with contract effective/expiration dates.');
     riskScore += 3;
   }
 
@@ -50,17 +92,40 @@ export function heuristicAnalysis(claim: ClaimRecord): AiAnalysis {
     riskScore += 1;
   }
 
-  if ((claim.claimDetails.documents?.length ?? 0) < 3) {
-    flags.push('Fewer than 3 supporting documents attached');
-    riskScore += 1;
+  const needsMaintenanceProof =
+    repairDesc.includes('engine') ||
+    repairDesc.includes('transmission') ||
+    repairDesc.includes('turbo');
+  if (
+    needsMaintenanceProof &&
+    !claim.claimDetails.attachedDocuments?.maintenanceRecords &&
+    !claim.claimDetails.attachedDocuments?.serviceHistory
+  ) {
+    flags.push('Major component repair without maintenance or service records');
+    guidelineConflicts.push(
+      'Maintenance validation cannot be completed without maintenance or service history per underwriting guidelines.'
+    );
+    riskScore += 2;
+  }
+
+  if (attachedCount === 0) {
+    flags.push('No supporting documents attached at submission');
   }
 
   riskScore = Math.min(10, Math.max(1, riskScore));
 
   let recommendation: AiAnalysis['recommendation'] = 'approve';
-  if (riskScore >= 8 || flags.some((f) => f.includes('not currently active') || f.includes('outside policy'))) {
+  if (
+    riskScore >= 8 ||
+    flags.some((f) => f.includes('not currently active') || f.includes('outside policy'))
+  ) {
     recommendation = 'deny';
-  } else if (riskScore >= 5 || fraudIndicators.length > 0) {
+  } else if (
+    riskScore >= 5 ||
+    fraudIndicators.length > 0 ||
+    informationRequests.length > 0 ||
+    guidelineConflicts.length > 0
+  ) {
     recommendation = 'review';
   }
 
@@ -68,7 +133,9 @@ export function heuristicAnalysis(claim: ClaimRecord): AiAnalysis {
     recommendation === 'deny'
       ? 'Rule-based analysis found critical policy or eligibility issues that warrant denial.'
       : recommendation === 'review'
-        ? 'Claim has risk factors that require adjuster review before approval.'
+        ? informationRequests.length > 0
+          ? 'Claim needs additional information before it can be fully evaluated against underwriting guidelines.'
+          : 'Claim has risk factors that require adjuster review before approval.'
         : 'Claim passes automated checks with acceptable risk profile.';
 
   const contractType = claim.policyInformation.contractType ?? 'unknown';
@@ -81,15 +148,23 @@ export function heuristicAnalysis(claim: ClaimRecord): AiAnalysis {
     flags,
     fraudIndicators,
     confidence: 65,
-    contractValid: !flags.some((f) => f.includes('not currently active') || f.includes('outside policy')),
+    contractValid: !flags.some(
+      (f) => f.includes('not currently active') || f.includes('outside policy')
+    ),
     waitingPeriodMet: null,
     componentCovered: null,
-    maintenanceConcern: flags.some((f) => f.includes('document')),
+    maintenanceConcern:
+      needsMaintenanceProof &&
+      !claim.claimDetails.attachedDocuments?.maintenanceRecords
+        ? true
+        : null,
     inspectionRecommended: estimate > 5000 ? true : null,
     denialCategory:
       recommendation === 'deny' && flags.some((f) => f.includes('outside policy'))
         ? 'invalid_contract'
         : null,
+    informationRequests,
+    guidelineConflicts,
     analyzedAt: new Date().toISOString(),
     model: `heuristic-v1${contractType !== 'unknown' ? `/${contractType}` : ''}`,
   };

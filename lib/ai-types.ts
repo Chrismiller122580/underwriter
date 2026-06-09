@@ -30,6 +30,16 @@ export const aiAnalysisSchema = z.object({
   maintenanceConcern: nullableBool('Whether maintenance record concerns exist'),
   inspectionRecommended: nullableBool('Whether inspection is recommended per guidelines'),
   denialCategory: nullableDenialCategory,
+  informationRequests: z
+    .array(z.string())
+    .describe(
+      'Specific documents or facts to request from the claimant when missing info blocks or weakens underwriting'
+    ),
+  guidelineConflicts: z
+    .array(z.string())
+    .describe(
+      'Ways this claim conflicts with or may violate the Freedom Warranty underwriting process or contract guidelines'
+    ),
 });
 
 export type AiAnalysis = z.infer<typeof aiAnalysisSchema> & {

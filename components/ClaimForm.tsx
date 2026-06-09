@@ -71,11 +71,7 @@ function validateForm(
 
   for (const field of FILE_FIELDS) {
     const file = files[field];
-    if (!file) {
-      errors[field] = 'A file is required.';
-      continue;
-    }
-    if (file.size > MAX_FILE_SIZE_BYTES) {
+    if (file && file.size > MAX_FILE_SIZE_BYTES) {
       errors[field] = 'File must be 10 MB or smaller.';
     }
   }
@@ -110,12 +106,11 @@ async function submitWithBlobUpload(
   onProgress: (percent: number) => void
 ): Promise<{ ok: boolean; status: number; body: unknown }> {
   const documents: Record<string, string> = {};
-  const totalFiles = FILE_FIELDS.length;
+  const fieldsWithFiles = FILE_FIELDS.filter((field) => files[field]);
 
-  for (let i = 0; i < FILE_FIELDS.length; i++) {
-    const field = FILE_FIELDS[i];
-    const file = files[field];
-    if (!file) throw new Error(`Missing file: ${field}`);
+  for (let i = 0; i < fieldsWithFiles.length; i++) {
+    const field = fieldsWithFiles[i];
+    const file = files[field]!;
 
     const blob = await upload(file.name, file, {
       access: 'public',
@@ -123,7 +118,11 @@ async function submitWithBlobUpload(
     });
 
     documents[field] = blob.url;
-    onProgress(Math.round(((i + 1) / totalFiles) * 85));
+    onProgress(
+      fieldsWithFiles.length > 0
+        ? Math.round(((i + 1) / fieldsWithFiles.length) * 85)
+        : 85
+    );
   }
 
   const response = await fetch('/api/claims', {
@@ -371,10 +370,12 @@ export function ClaimForm() {
       </section>
 
       <section className="form-section">
-        <h2>Supporting Documentation</h2>
+        <h2>Supporting Documentation (optional)</h2>
         <p className="form-hint">
-          Each file must be 10 MB or smaller. Policy document not required — contract
-          type is identified from the policy number.
+          Attach any supporting files you have — none are required at submission.
+          Each file must be 10 MB or smaller. Contract type is identified from the
+          policy number. If more documentation is needed, AI underwriting will
+          request it and check against Freedom Warranty guidelines.
         </p>
         <div className="form-grid">
           {FILE_FIELDS.map((field) => (
@@ -383,7 +384,6 @@ export function ClaimForm() {
               id={field}
               name={field}
               label={FILE_FIELD_LABELS[field]}
-              required
               error={errors[field]}
               onChange={(file) => setFiles((prev) => ({ ...prev, [field]: file }))}
             />

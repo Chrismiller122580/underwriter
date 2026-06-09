@@ -5,9 +5,32 @@ import type { ClaimRecord } from '@/lib/claims-store';
 import { heuristicAnalysis } from '@/lib/ai-heuristic';
 import { aiAnalysisSchema, type AiAnalysis } from '@/lib/ai-types';
 import { logger } from '@/lib/logger';
+import {
+  FILE_FIELD_LABELS,
+  FILE_FIELDS,
+} from '@/lib/parse-claim-form';
 import { buildUnderwritingSystemPrompt } from '@/lib/underwriting-guidelines';
 
+function buildDocumentStatus(claim: ClaimRecord) {
+  const attached = claim.claimDetails.attachedDocuments ?? {};
+  const provided = FILE_FIELDS.filter((field) => attached[field]).map(
+    (field) => ({
+      field,
+      label: FILE_FIELD_LABELS[field],
+      url: attached[field],
+    })
+  );
+  const missing = FILE_FIELDS.filter((field) => !attached[field]).map((field) => ({
+    field,
+    label: FILE_FIELD_LABELS[field],
+  }));
+
+  return { provided, missing, documentCount: provided.length };
+}
+
 function buildClaimContext(claim: ClaimRecord): string {
+  const documents = buildDocumentStatus(claim);
+
   return JSON.stringify(
     {
       policy: claim.policyInformation,
@@ -16,7 +39,7 @@ function buildClaimContext(claim: ClaimRecord): string {
       incident: claim.incidentDetails,
       repair: claim.repairInformation,
       amount: claim.claimDetails.amount,
-      documentCount: claim.claimDetails.documents?.length ?? 0,
+      documents,
       submittedAt: claim.createdAt,
     },
     null,
@@ -85,10 +108,21 @@ export function combineDecisions(
     };
   }
 
-  if (ai.recommendation === 'review') {
+  if (
+    ai.informationRequests.length > 0 ||
+    ai.guidelineConflicts.length > 0 ||
+    ai.recommendation === 'review'
+  ) {
+    const parts = [`AI flags for review (risk ${ai.riskScore}/10): ${ai.reasoning}`];
+    if (ai.informationRequests.length > 0) {
+      parts.push(`Information needed: ${ai.informationRequests.join('; ')}`);
+    }
+    if (ai.guidelineConflicts.length > 0) {
+      parts.push(`Guideline concerns: ${ai.guidelineConflicts.join('; ')}`);
+    }
     return {
       decision: 'under_review',
-      reason: `AI flags for review (risk ${ai.riskScore}/10): ${ai.reasoning}`,
+      reason: parts.join(' '),
     };
   }
 

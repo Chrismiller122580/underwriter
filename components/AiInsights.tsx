@@ -13,6 +13,8 @@ type AiAnalysis = {
   maintenanceConcern?: boolean | null;
   inspectionRecommended?: boolean | null;
   denialCategory?: string | null;
+  informationRequests?: string[];
+  guidelineConflicts?: string[];
 };
 
 function riskClass(score: number) {
@@ -66,6 +68,28 @@ export function AiInsights({ analysis }: { analysis: AiAnalysis }) {
               {check}
             </span>
           ))}
+        </div>
+      )}
+
+      {(analysis.informationRequests?.length ?? 0) > 0 && (
+        <div className="ai-info-requests">
+          <strong>Information needed</strong>
+          <ul>
+            {analysis.informationRequests!.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {(analysis.guidelineConflicts?.length ?? 0) > 0 && (
+        <div className="ai-guideline-conflicts">
+          <strong>Guideline concerns</strong>
+          <ul>
+            {analysis.guidelineConflicts!.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
         </div>
       )}
 

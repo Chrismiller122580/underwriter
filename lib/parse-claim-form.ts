@@ -37,10 +37,7 @@ export const FILE_FIELDS = [
 ] as const;
 
 export const claimJsonSchema = claimFormSchema.extend({
-  documents: z.record(z.string().url()).refine(
-    (docs) => FILE_FIELDS.every((field) => docs[field]),
-    { message: 'All document fields are required.' }
-  ),
+  documents: z.record(z.string().url()).default({}),
 });
 
 export type ParsedClaimJson = z.infer<typeof claimJsonSchema>;
@@ -122,6 +119,7 @@ export function buildClaimDocument(
       description: parsed.descriptionOfIncident,
       amount: parsed.repairEstimate,
       documents: Object.values(documentPaths),
+      attachedDocuments: documentPaths,
     },
     status: 'pending' as const,
   };

@@ -47,6 +47,7 @@ export type ClaimRecord = {
     description: string;
     amount: number;
     documents: string[];
+    attachedDocuments?: Record<string, string>;
   };
   status: string;
   underwriting?: {
@@ -134,10 +135,15 @@ export async function updateClaimDocuments(
   await ensureSchema();
   const sql = getSql();
   const documents = JSON.stringify(Object.values(documentPaths));
+  const attachedDocuments = JSON.stringify(documentPaths);
 
   const rows = (await sql`
     UPDATE claims
-    SET claim_details = jsonb_set(claim_details, '{documents}', ${documents}::jsonb),
+    SET claim_details = jsonb_set(
+          jsonb_set(claim_details, '{documents}', ${documents}::jsonb),
+          '{attachedDocuments}',
+          ${attachedDocuments}::jsonb
+        ),
         updated_at = NOW()
     WHERE id = ${id}::uuid
     RETURNING *
