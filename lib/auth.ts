@@ -56,14 +56,15 @@ export async function getSessionFromRequest(
 }
 
 export function verifyAdjusterPassword(password: string): Session | null {
-  const adjusterPassword = process.env.ADJUSTER_PASSWORD;
-  const supervisorPassword = process.env.SUPERVISOR_PASSWORD;
+  const input = password.trim();
+  const adjusterPassword = process.env.ADJUSTER_PASSWORD?.trim();
+  const supervisorPassword = process.env.SUPERVISOR_PASSWORD?.trim();
 
-  if (supervisorPassword && password === supervisorPassword) {
+  if (supervisorPassword && input === supervisorPassword) {
     return { email: 'supervisor@fwcut.local', role: 'supervisor' };
   }
 
-  if (adjusterPassword && password === adjusterPassword) {
+  if (adjusterPassword && input === adjusterPassword) {
     return { email: 'adjuster@fwcut.local', role: 'adjuster' };
   }
 

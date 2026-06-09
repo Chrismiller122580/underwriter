@@ -18,11 +18,13 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        credentials: 'same-origin',
+        body: JSON.stringify({ password: password.trim() }),
       });
 
       if (!response.ok) {
-        throw new Error('Invalid password');
+        const data = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? 'Invalid password');
       }
 
       router.push(redirectTo);
