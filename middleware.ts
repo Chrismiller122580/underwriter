@@ -5,7 +5,10 @@ import { getSessionFromRequest } from '@/lib/auth';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (pathname === '/api/claims' && request.method === 'POST') {
+  if (
+    (pathname === '/api/claims' && request.method === 'POST') ||
+    pathname === '/api/claims/extract'
+  ) {
     return NextResponse.next();
   }
 
@@ -35,5 +38,10 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/claims', '/claims/:path*', '/api/claims', '/api/claims/:path*'],
+  matcher: [
+    '/claims',
+    '/claims/:path*',
+    '/api/claims',
+    '/api/claims/:path*',
+  ],
 };

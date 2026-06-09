@@ -4,60 +4,53 @@ import { upload } from '@vercel/blob/client';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import {
+  EXTRACTABLE_FIELDS,
+  type ExtractableField,
+} from '@/lib/extract-claim';
+import {
   FILE_FIELD_LABELS,
   FILE_FIELDS,
   MAX_FILE_SIZE_BYTES,
 } from '@/lib/parse-claim-form';
 import { FileInput } from './FileInput';
+import { ScreenshotAutofill } from './ScreenshotAutofill';
 
 const USE_BLOB_UPLOAD = process.env.NEXT_PUBLIC_USE_BLOB_UPLOAD === 'true';
 
-type FieldErrors = Record<string, string>;
+type FormValues = Record<ExtractableField, string>;
+type FieldErrors = Partial<Record<ExtractableField | (typeof FILE_FIELDS)[number], string>>;
 
-function validateForm(formData: FormData, files: Record<string, File | null>): FieldErrors {
+const EMPTY_VALUES = Object.fromEntries(
+  EXTRACTABLE_FIELDS.map((f) => [f, ''])
+) as FormValues;
+
+function validateForm(
+  values: FormValues,
+  files: Record<string, File | null>
+): FieldErrors {
   const errors: FieldErrors = {};
 
-  const required = [
-    'policyNumber',
-    'coverageDetails',
-    'policyEffectiveDate',
-    'policyExpirationDate',
-    'vin',
-    'make',
-    'model',
-    'year',
-    'odometerReading',
-    'name',
-    'contactInformation',
-    'relationshipToVehicle',
-    'dateOfLoss',
-    'descriptionOfIncident',
-    'locationOfIncident',
-    'repairEstimate',
-    'detailedRepairDescription',
-    'repairShopInformation',
-  ];
-
-  for (const field of required) {
-    const value = formData.get(field);
-    if (!value || String(value).trim() === '') {
+  for (const field of EXTRACTABLE_FIELDS) {
+    if (!values[field]?.trim()) {
       errors[field] = 'This field is required.';
     }
   }
 
-  const effective = formData.get('policyEffectiveDate');
-  const expiration = formData.get('policyExpirationDate');
-  if (effective && expiration && String(expiration) <= String(effective)) {
+  if (
+    values.policyExpirationDate &&
+    values.policyEffectiveDate &&
+    values.policyExpirationDate <= values.policyEffectiveDate
+  ) {
     errors.policyExpirationDate = 'Expiration date must be after effective date.';
   }
 
-  const repairEstimate = Number(formData.get('repairEstimate'));
-  if (formData.get('repairEstimate') && repairEstimate <= 0) {
+  const repairEstimate = Number(values.repairEstimate);
+  if (values.repairEstimate && repairEstimate <= 0) {
     errors.repairEstimate = 'Repair estimate must be greater than zero.';
   }
 
-  const year = Number(formData.get('year'));
-  if (formData.get('year') && (year < 1900 || year > 2100)) {
+  const year = Number(values.year);
+  if (values.year && (year < 1900 || year > 2100)) {
     errors.year = 'Enter a valid vehicle year.';
   }
 
@@ -75,14 +68,23 @@ function validateForm(formData: FormData, files: Record<string, File | null>): F
   return errors;
 }
 
-function formDataToPayload(formData: FormData) {
-  return Object.fromEntries(
-    Array.from(formData.entries()).filter(([, value]) => typeof value === 'string')
-  );
+function buildFormData(
+  values: FormValues,
+  files: Record<string, File | null>
+): FormData {
+  const formData = new FormData();
+  for (const field of EXTRACTABLE_FIELDS) {
+    formData.append(field, values[field]);
+  }
+  for (const field of FILE_FIELDS) {
+    const file = files[field];
+    if (file) formData.append(field, file);
+  }
+  return formData;
 }
 
 async function submitWithBlobUpload(
-  formData: FormData,
+  values: FormValues,
   files: Record<string, File | null>,
   onProgress: (percent: number) => void
 ): Promise<{ ok: boolean; status: number; body: unknown }> {
@@ -103,19 +105,13 @@ async function submitWithBlobUpload(
     onProgress(Math.round(((i + 1) / totalFiles) * 85));
   }
 
-  const payload = {
-    ...formDataToPayload(formData),
-    documents,
-  };
-
   const response = await fetch('/api/claims', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...values, documents }),
   });
 
   onProgress(100);
-
   const body = await response.json().catch(() => ({}));
   return { ok: response.ok, status: response.status, body };
 }
@@ -151,6 +147,8 @@ function submitWithProgress(
 
 export function ClaimForm() {
   const router = useRouter();
+  const [values, setValues] = useState<FormValues>(EMPTY_VALUES);
+  const [autofilled, setAutofilled] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -161,13 +159,35 @@ export function ClaimForm() {
     Object.fromEntries(FILE_FIELDS.map((f) => [f, null]))
   );
 
+  function updateField(name: ExtractableField, value: string) {
+    setValues((prev) => ({ ...prev, [name]: value }));
+    setAutofilled((prev) => {
+      const next = new Set(prev);
+      next.delete(name);
+      return next;
+    });
+  }
+
+  function handleAutofill(
+    fields: Partial<Record<ExtractableField, string>>,
+    meta: { fieldsFound: string[] }
+  ) {
+    setValues((prev) => {
+      const next = { ...prev };
+      for (const [key, value] of Object.entries(fields)) {
+        if (value) next[key as ExtractableField] = value;
+      }
+      return next;
+    });
+    setAutofilled(new Set(meta.fieldsFound));
+    setErrors({});
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage(null);
 
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    const validationErrors = validateForm(formData, files);
+    const validationErrors = validateForm(values, files);
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -181,8 +201,8 @@ export function ClaimForm() {
 
     try {
       const result = USE_BLOB_UPLOAD
-        ? await submitWithBlobUpload(formData, files, setProgress)
-        : await submitWithProgress(formData, setProgress);
+        ? await submitWithBlobUpload(values, files, setProgress)
+        : await submitWithProgress(buildFormData(values, files), setProgress);
 
       if (!result.ok) {
         const body = result.body as { error?: string };
@@ -204,53 +224,58 @@ export function ClaimForm() {
 
   return (
     <form className="claim-form" onSubmit={handleSubmit} noValidate>
+      <ScreenshotAutofill
+        onExtracted={handleAutofill}
+        disabled={submitting}
+      />
+
       <section className="form-section">
         <h2>Policy Information</h2>
         <div className="form-grid">
-          <FormField label="Policy Number" name="policyNumber" error={errors.policyNumber} />
-          <FormField label="Coverage Details" name="coverageDetails" error={errors.coverageDetails} />
-          <FormField label="Policy Effective Date" name="policyEffectiveDate" type="date" error={errors.policyEffectiveDate} />
-          <FormField label="Policy Expiration Date" name="policyExpirationDate" type="date" error={errors.policyExpirationDate} />
+          <FormField label="Policy Number" name="policyNumber" value={values.policyNumber} onChange={updateField} error={errors.policyNumber} autofilled={autofilled.has('policyNumber')} />
+          <FormField label="Coverage Details" name="coverageDetails" value={values.coverageDetails} onChange={updateField} error={errors.coverageDetails} autofilled={autofilled.has('coverageDetails')} />
+          <FormField label="Policy Effective Date" name="policyEffectiveDate" type="date" value={values.policyEffectiveDate} onChange={updateField} error={errors.policyEffectiveDate} autofilled={autofilled.has('policyEffectiveDate')} />
+          <FormField label="Policy Expiration Date" name="policyExpirationDate" type="date" value={values.policyExpirationDate} onChange={updateField} error={errors.policyExpirationDate} autofilled={autofilled.has('policyExpirationDate')} />
         </div>
       </section>
 
       <section className="form-section">
         <h2>Vehicle Information</h2>
         <div className="form-grid">
-          <FormField label="VIN" name="vin" error={errors.vin} />
-          <FormField label="Make" name="make" error={errors.make} />
-          <FormField label="Model" name="model" error={errors.model} />
-          <FormField label="Year" name="year" type="number" error={errors.year} />
-          <FormField label="Odometer Reading" name="odometerReading" type="number" error={errors.odometerReading} />
+          <FormField label="VIN" name="vin" value={values.vin} onChange={updateField} error={errors.vin} autofilled={autofilled.has('vin')} />
+          <FormField label="Make" name="make" value={values.make} onChange={updateField} error={errors.make} autofilled={autofilled.has('make')} />
+          <FormField label="Model" name="model" value={values.model} onChange={updateField} error={errors.model} autofilled={autofilled.has('model')} />
+          <FormField label="Year" name="year" type="number" value={values.year} onChange={updateField} error={errors.year} autofilled={autofilled.has('year')} />
+          <FormField label="Odometer Reading" name="odometerReading" type="number" value={values.odometerReading} onChange={updateField} error={errors.odometerReading} autofilled={autofilled.has('odometerReading')} />
         </div>
       </section>
 
       <section className="form-section">
         <h2>Claimant Information</h2>
         <div className="form-grid">
-          <FormField label="Name" name="name" error={errors.name} />
-          <FormField label="Contact Information" name="contactInformation" error={errors.contactInformation} />
-          <FormField label="Relationship to Vehicle" name="relationshipToVehicle" error={errors.relationshipToVehicle} />
+          <FormField label="Name" name="name" value={values.name} onChange={updateField} error={errors.name} autofilled={autofilled.has('name')} />
+          <FormField label="Contact Information" name="contactInformation" value={values.contactInformation} onChange={updateField} error={errors.contactInformation} autofilled={autofilled.has('contactInformation')} />
+          <FormField label="Relationship to Vehicle" name="relationshipToVehicle" value={values.relationshipToVehicle} onChange={updateField} error={errors.relationshipToVehicle} autofilled={autofilled.has('relationshipToVehicle')} />
         </div>
       </section>
 
       <section className="form-section">
         <h2>Incident Details</h2>
-        <FormField label="Date of Loss" name="dateOfLoss" type="date" error={errors.dateOfLoss} />
-        <FormField label="Description of the Incident" name="descriptionOfIncident" type="textarea" error={errors.descriptionOfIncident} />
-        <FormField label="Location of Incident" name="locationOfIncident" error={errors.locationOfIncident} />
+        <FormField label="Date of Loss" name="dateOfLoss" type="date" value={values.dateOfLoss} onChange={updateField} error={errors.dateOfLoss} autofilled={autofilled.has('dateOfLoss')} />
+        <FormField label="Description of the Incident" name="descriptionOfIncident" type="textarea" value={values.descriptionOfIncident} onChange={updateField} error={errors.descriptionOfIncident} autofilled={autofilled.has('descriptionOfIncident')} />
+        <FormField label="Location of Incident" name="locationOfIncident" value={values.locationOfIncident} onChange={updateField} error={errors.locationOfIncident} autofilled={autofilled.has('locationOfIncident')} />
       </section>
 
       <section className="form-section">
         <h2>Repair Information</h2>
-        <FormField label="Repair Estimate ($)" name="repairEstimate" type="number" error={errors.repairEstimate} />
-        <FormField label="Detailed Repair Description" name="detailedRepairDescription" type="textarea" error={errors.detailedRepairDescription} />
-        <FormField label="Repair Shop Information" name="repairShopInformation" error={errors.repairShopInformation} />
+        <FormField label="Repair Estimate ($)" name="repairEstimate" type="number" value={values.repairEstimate} onChange={updateField} error={errors.repairEstimate} autofilled={autofilled.has('repairEstimate')} />
+        <FormField label="Detailed Repair Description" name="detailedRepairDescription" type="textarea" value={values.detailedRepairDescription} onChange={updateField} error={errors.detailedRepairDescription} autofilled={autofilled.has('detailedRepairDescription')} />
+        <FormField label="Repair Shop Information" name="repairShopInformation" value={values.repairShopInformation} onChange={updateField} error={errors.repairShopInformation} autofilled={autofilled.has('repairShopInformation')} />
       </section>
 
       <section className="form-section">
         <h2>Supporting Documentation</h2>
-        <p className="form-hint">Each file must be 10 MB or smaller.</p>
+        <p className="form-hint">Each file must be 10 MB or smaller. These are not extracted from the screenshot — attach separately.</p>
         <div className="form-grid">
           {FILE_FIELDS.map((field) => (
             <FileInput
@@ -290,27 +315,47 @@ function FormField({
   label,
   name,
   type = 'text',
+  value,
+  onChange,
   error,
+  autofilled,
 }: {
   label: string;
-  name: string;
+  name: ExtractableField;
   type?: string;
+  value: string;
+  onChange: (name: ExtractableField, value: string) => void;
   error?: string;
+  autofilled?: boolean;
 }) {
-  const id = name;
+  const className = [error ? 'input-error' : '', autofilled ? 'input-autofilled' : '']
+    .filter(Boolean)
+    .join(' ') || undefined;
 
   return (
     <div className="form-field">
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={name}>
+        {label}
+        {autofilled && <span className="autofill-tag">AI filled</span>}
+      </label>
       {type === 'textarea' ? (
-        <textarea id={id} name={name} required className={error ? 'input-error' : undefined} />
+        <textarea
+          id={name}
+          name={name}
+          value={value}
+          required
+          className={className}
+          onChange={(e) => onChange(name, e.target.value)}
+        />
       ) : (
         <input
           type={type}
-          id={id}
+          id={name}
           name={name}
+          value={value}
           required
-          className={error ? 'input-error' : undefined}
+          className={className}
+          onChange={(e) => onChange(name, e.target.value)}
         />
       )}
       {error && <span className="field-error">{error}</span>}

@@ -510,3 +510,52 @@ a {
   gap: 10px;
   flex-wrap: wrap;
 }
+
+/* Screenshot autofill */
+.screenshot-autofill {
+  background: linear-gradient(135deg, #f0f4ff 0%, #fafbfd 100%);
+  border: 1px dashed #4a3fbf;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.screenshot-upload-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.screenshot-input {
+  display: none;
+}
+
+.screenshot-preview {
+  margin-top: 16px;
+  max-width: 480px;
+  border: 1px solid #d0daf0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.screenshot-preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.input-autofilled {
+  background: #f0fff4;
+  border-color: #1b7f4e;
+}
+
+.autofill-tag {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1b7f4e;
+  background: #e6f4ec;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
