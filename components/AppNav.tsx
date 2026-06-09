@@ -35,13 +35,16 @@ export function AppNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
+    setSessionLoaded(false);
     fetch('/api/auth/session')
       .then((res) => (res.ok ? res.json() : { authenticated: false }))
       .then(setSession)
-      .catch(() => setSession({ authenticated: false }));
+      .catch(() => setSession({ authenticated: false }))
+      .finally(() => setSessionLoaded(true));
   }, [pathname]);
 
   useEffect(() => {
@@ -57,9 +60,16 @@ export function AppNav() {
 
   const isAuthenticated = Boolean(session?.authenticated);
   const isSupervisor = session?.role === 'supervisor';
+  const isPublicHome = pathname === '/';
+
+  if (isPublicHome && sessionLoaded && !isAuthenticated) {
+    return null;
+  }
 
   const visibleLinks = [
-    ...PUBLIC_LINKS,
+    ...PUBLIC_LINKS.filter(
+      (item) => !(isPublicHome && item.href === '/')
+    ),
     ...(isAuthenticated ? STAFF_LINKS : []),
     ...(isSupervisor ? SUPERVISOR_LINKS : []),
   ];

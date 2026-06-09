@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 export default function HomePage() {
   return (
-    <main className="container page-main">
+    <main className="container page-main page-main-home">
       <div className="card">
         <p className="badge">FWCUT Underwriter</p>
         <h1 className="page-title">Claims Underwriting Platform</h1>
@@ -15,8 +15,8 @@ export default function HomePage() {
           <Link href="/submit" className="button">
             Submit a Claim
           </Link>
-          <Link href="/claims" className="button button-secondary">
-            View Dashboard
+          <Link href="/login" className="button button-secondary">
+            Staff Sign In
           </Link>
         </div>
 
