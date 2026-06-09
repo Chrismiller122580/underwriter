@@ -17,8 +17,8 @@ export function SupervisorKnowledgeLink() {
 
   return (
     <p className="page-intro" style={{ marginTop: 8 }}>
-      <Link href="/admin/knowledge">Upload underwriting knowledge</Link> to make
-      AI decisions smarter.
+      <Link href="/admin/toolbox">Open Supervisor Toolbox</Link> to train AI and
+      run bulk underwriting operations.
     </p>
   );
 }

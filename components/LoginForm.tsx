@@ -41,8 +41,9 @@ export function LoginForm({
       }
 
       const destination =
-        data.role === 'supervisor' && redirectTo === '/claims'
-          ? '/admin/knowledge'
+        data.role === 'supervisor' &&
+        (redirectTo === '/claims' || redirectTo === '/admin/knowledge')
+          ? '/admin/toolbox'
           : redirectTo;
 
       router.push(destination);

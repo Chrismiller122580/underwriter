@@ -792,3 +792,249 @@ a {
   color: #312e81;
   font-weight: 600;
 }
+
+/* Supervisor toolbox */
+.toolbox-page {
+  margin-top: 32px;
+}
+
+.toolbox-shell {
+  padding-bottom: 28px;
+}
+
+.supervisor-toolbox {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.toolbox-sidebar {
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f8faff 0%, #f3f6fb 100%);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 20px;
+  align-self: start;
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+}
+
+.toolbox-tagline {
+  font-size: 13px;
+  color: #64748b;
+  margin: 8px 0 0;
+}
+
+.toolbox-nav {
+  display: grid;
+  gap: 8px;
+}
+
+.toolbox-nav-item {
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.toolbox-nav-item:hover {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: #dbe3ef;
+}
+
+.toolbox-nav-item.active {
+  background: #fff;
+  border-color: #4a3fbf;
+  box-shadow: 0 1px 3px rgba(74, 63, 191, 0.12);
+}
+
+.toolbox-nav-label {
+  display: block;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.toolbox-nav-hint {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.toolbox-panel {
+  min-width: 0;
+}
+
+.toolbox-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.toolbox-panel-header h2 {
+  margin: 0 0 6px;
+}
+
+.toolbox-header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.toolbox-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.toolbox-status-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
+  display: grid;
+  gap: 4px;
+}
+
+.toolbox-status-card.tone-good {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.toolbox-status-card.tone-warn {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+.toolbox-status-title {
+  font-size: 12px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.toolbox-status-value {
+  font-size: 20px;
+  color: #0f172a;
+}
+
+.toolbox-status-detail {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.toolbox-split {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.toolbox-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.toolbox-card h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.toolbox-action-list,
+.toolbox-kv-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.toolbox-kv-list {
+  list-style: none;
+  padding: 0;
+}
+
+.toolbox-kv-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.toolbox-table-wrap {
+  overflow: auto;
+}
+
+.toolbox-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.toolbox-table th,
+.toolbox-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.toolbox-table th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.toolbox-code-input,
+.toolbox-prompt-preview {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 14px;
+  overflow: auto;
+}
+
+.toolbox-code-input {
+  background: #fff;
+  color: #0f172a;
+  min-height: 280px;
+}
+
+.toolbox-prompt-preview {
+  max-height: 520px;
+  white-space: pre-wrap;
+  margin-top: 12px;
+}
+
+.toolbox-results {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+@media (max-width: 900px) {
+  .supervisor-toolbox {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbox-sidebar {
+    position: static;
+    max-height: none;
+  }
+}

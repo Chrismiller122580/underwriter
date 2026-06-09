@@ -42,17 +42,20 @@ function mapRow(row: KnowledgeRow): KnowledgeDocument {
   };
 }
 
-async function saveKnowledgeFile(
-  file: File,
+async function saveKnowledgeBuffer(
+  buffer: Buffer,
+  filename: string,
+  contentType: string,
   documentId: string
 ): Promise<string> {
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
   const token = process.env.BLOB_READ_WRITE_TOKEN;
 
   if (token) {
-    const blob = await put(`knowledge/${documentId}/${safeName}`, file, {
+    const blob = await put(`knowledge/${documentId}/${safeName}`, buffer, {
       access: 'public',
       token,
+      contentType,
     });
     return blob.url;
   }
@@ -60,9 +63,21 @@ async function saveKnowledgeFile(
   const dir = path.join(process.cwd(), 'uploads', 'knowledge', documentId);
   await mkdir(dir, { recursive: true });
   const diskPath = path.join(dir, safeName);
-  const buffer = Buffer.from(await file.arrayBuffer());
   await writeFile(diskPath, buffer);
   return `uploads/knowledge/${documentId}/${safeName}`;
+}
+
+async function saveKnowledgeFile(
+  file: File,
+  documentId: string
+): Promise<string> {
+  const buffer = Buffer.from(await file.arrayBuffer());
+  return saveKnowledgeBuffer(
+    buffer,
+    file.name,
+    file.type || 'application/octet-stream',
+    documentId
+  );
 }
 
 export async function listKnowledgeDocuments(): Promise<KnowledgeDocument[]> {
@@ -92,6 +107,92 @@ export async function listActiveKnowledgeDocuments(): Promise<KnowledgeDocument[
         categoryPriority(a.category) - categoryPriority(b.category) ||
         b.createdAt.localeCompare(a.createdAt)
     );
+}
+
+export async function findKnowledgeByTitle(
+  title: string
+): Promise<KnowledgeDocument | null> {
+  await ensureKnowledgeSchema();
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT * FROM underwriting_knowledge
+    WHERE title = ${title}
+    LIMIT 1
+  `) as KnowledgeRow[];
+
+  if (rows.length === 0) return null;
+  return mapRow(rows[0]);
+}
+
+export async function createKnowledgeFromBuffer(input: {
+  title: string;
+  category: KnowledgeCategory;
+  filename: string;
+  contentType: string;
+  buffer: Buffer;
+  extractedText: string;
+  notes?: string;
+  uploadedBy: string;
+}): Promise<KnowledgeDocument> {
+  await ensureKnowledgeSchema();
+  const sql = getSql();
+
+  const placeholderRows = (await sql`
+    INSERT INTO underwriting_knowledge (
+      title, category, filename, content_type, file_url,
+      extracted_text, notes, uploaded_by
+    ) VALUES (
+      ${input.title},
+      ${input.category},
+      ${input.filename},
+      ${input.contentType},
+      'pending',
+      ${input.extractedText},
+      ${input.notes ?? null},
+      ${input.uploadedBy}
+    )
+    RETURNING *
+  `) as KnowledgeRow[];
+
+  const created = placeholderRows[0];
+  const fileUrl = await saveKnowledgeBuffer(
+    input.buffer,
+    input.filename,
+    input.contentType,
+    created.id
+  );
+
+  const rows = (await sql`
+    UPDATE underwriting_knowledge
+    SET file_url = ${fileUrl},
+        updated_at = NOW()
+    WHERE id = ${created.id}::uuid
+    RETURNING *
+  `) as KnowledgeRow[];
+
+  return mapRow(rows[0]);
+}
+
+export async function getKnowledgeStats() {
+  const docs = await listKnowledgeDocuments();
+  const active = docs.filter((doc) => doc.active);
+
+  return {
+    total: docs.length,
+    active: active.length,
+    inactive: docs.length - active.length,
+    totalExtractedChars: active.reduce(
+      (sum, doc) => sum + doc.extractedText.length,
+      0
+    ),
+    byCategory: KNOWLEDGE_CATEGORIES.reduce(
+      (acc, category) => {
+        acc[category] = active.filter((doc) => doc.category === category).length;
+        return acc;
+      },
+      {} as Record<KnowledgeCategory, number>
+    ),
+  };
 }
 
 export async function createKnowledgeDocument(input: {
