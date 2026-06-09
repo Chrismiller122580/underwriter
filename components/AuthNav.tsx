@@ -41,7 +41,7 @@ export function AuthNav() {
           </button>
         </>
       ) : (
-        <Link href="/login">Sign in</Link>
+        <Link href="/login?role=supervisor">Sign in</Link>
       )}
     </div>
   );

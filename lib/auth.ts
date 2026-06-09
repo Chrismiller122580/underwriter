@@ -55,6 +55,45 @@ export async function getSessionFromRequest(
   return verifySessionToken(token);
 }
 
+export function getConfiguredRoles(): {
+  adjuster: boolean;
+  supervisor: boolean;
+  supervisorUsesAdjusterFallback: boolean;
+} {
+  const adjusterPassword = process.env.ADJUSTER_PASSWORD?.trim();
+  const supervisorPassword = process.env.SUPERVISOR_PASSWORD?.trim();
+
+  return {
+    adjuster: Boolean(adjusterPassword),
+    supervisor: Boolean(supervisorPassword || adjusterPassword),
+    supervisorUsesAdjusterFallback: !supervisorPassword && Boolean(adjusterPassword),
+  };
+}
+
+export function verifyLoginPassword(
+  password: string,
+  role: UserRole
+): Session | null {
+  const input = password.trim();
+  const adjusterPassword = process.env.ADJUSTER_PASSWORD?.trim();
+  const supervisorPassword = process.env.SUPERVISOR_PASSWORD?.trim();
+
+  if (role === 'supervisor') {
+    const effectiveSupervisorPassword = supervisorPassword || adjusterPassword;
+    if (effectiveSupervisorPassword && input === effectiveSupervisorPassword) {
+      return { email: 'supervisor@fwcut.local', role: 'supervisor' };
+    }
+    return null;
+  }
+
+  if (adjusterPassword && input === adjusterPassword) {
+    return { email: 'adjuster@fwcut.local', role: 'adjuster' };
+  }
+
+  return null;
+}
+
+/** @deprecated Use verifyLoginPassword with an explicit role. */
 export function verifyAdjusterPassword(password: string): Session | null {
   const input = password.trim();
   const adjusterPassword = process.env.ADJUSTER_PASSWORD?.trim();

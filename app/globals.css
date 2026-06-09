@@ -768,3 +768,27 @@ a {
 .link-button.danger {
   color: #b00020;
 }
+
+.login-role-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.login-role {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.login-role.active {
+  border-color: #4a3fbf;
+  background: #eef2ff;
+  color: #312e81;
+  font-weight: 600;
+}
