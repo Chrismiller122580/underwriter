@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import {
   EXTRACTABLE_FIELDS,
-  extractClaimFromScreenshot,
+  extractClaimFromScreenshots,
 } from '@/lib/extract-claim';
 import { logger } from '@/lib/logger';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
@@ -16,6 +16,20 @@ const ALLOWED_TYPES = new Set([
 ]);
 
 const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024;
+const MAX_SCREENSHOTS = 10;
+
+function collectScreenshots(formData: FormData): File[] {
+  const fromPlural = formData
+    .getAll('screenshots')
+    .filter((entry): entry is File => entry instanceof File && entry.size > 0);
+
+  if (fromPlural.length > 0) return fromPlural;
+
+  const single = formData.get('screenshot');
+  if (single instanceof File && single.size > 0) return [single];
+
+  return [];
+}
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
@@ -30,31 +44,46 @@ export async function POST(request: Request) {
 
   try {
     const formData = await request.formData();
-    const screenshot = formData.get('screenshot');
+    const screenshots = collectScreenshots(formData);
 
-    if (!(screenshot instanceof File) || screenshot.size === 0) {
+    if (screenshots.length === 0) {
       return NextResponse.json(
-        { error: 'A screenshot image is required.' },
+        { error: 'At least one screenshot image is required.' },
         { status: 400 }
       );
     }
 
-    if (!ALLOWED_TYPES.has(screenshot.type)) {
+    if (screenshots.length > MAX_SCREENSHOTS) {
       return NextResponse.json(
-        { error: 'Screenshot must be PNG, JPEG, or WebP.' },
+        { error: `You can upload up to ${MAX_SCREENSHOTS} screenshots at a time.` },
         { status: 400 }
       );
     }
 
-    if (screenshot.size > MAX_SCREENSHOT_BYTES) {
-      return NextResponse.json(
-        { error: 'Screenshot must be 5 MB or smaller.' },
-        { status: 400 }
-      );
+    const images: Array<{ buffer: Buffer; mimeType: string }> = [];
+
+    for (const screenshot of screenshots) {
+      if (!ALLOWED_TYPES.has(screenshot.type)) {
+        return NextResponse.json(
+          { error: 'All screenshots must be PNG, JPEG, or WebP.' },
+          { status: 400 }
+        );
+      }
+
+      if (screenshot.size > MAX_SCREENSHOT_BYTES) {
+        return NextResponse.json(
+          { error: 'Each screenshot must be 5 MB or smaller.' },
+          { status: 400 }
+        );
+      }
+
+      images.push({
+        buffer: Buffer.from(await screenshot.arrayBuffer()),
+        mimeType: screenshot.type,
+      });
     }
 
-    const buffer = Buffer.from(await screenshot.arrayBuffer());
-    const result = await extractClaimFromScreenshot(buffer, screenshot.type);
+    const result = await extractClaimFromScreenshots(images);
 
     const missingFields = EXTRACTABLE_FIELDS.filter(
       (field) => !result.fields[field]
@@ -65,6 +94,7 @@ export async function POST(request: Request) {
       fieldsFound: result.fieldsFound,
       filledCount: result.fieldsFound.length,
       missingFields,
+      screenshotCount: images.length,
       notes: result.notes,
     });
   } catch (error) {

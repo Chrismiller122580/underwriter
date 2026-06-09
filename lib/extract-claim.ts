@@ -100,14 +100,53 @@ export function normalizeExtractedClaim(
   return result;
 }
 
-export async function extractClaimFromScreenshot(
-  imageBuffer: Buffer,
-  mimeType: string
-): Promise<{
+export type ExtractionResult = {
   fields: Record<string, string>;
   fieldsFound: string[];
   notes?: string;
-}> {
+};
+
+export function mergeExtractionResults(
+  results: ExtractionResult[]
+): ExtractionResult {
+  const fields = {} as Record<ExtractableField, string>;
+  const fieldsFoundSet = new Set<string>();
+  const notes: string[] = [];
+
+  for (const result of results) {
+    for (const field of result.fieldsFound) {
+      fieldsFoundSet.add(field);
+    }
+    if (result.notes?.trim()) {
+      notes.push(result.notes.trim());
+    }
+    for (const field of EXTRACTABLE_FIELDS) {
+      const value = result.fields[field];
+      if (value && !fields[field]) {
+        fields[field] = value;
+      }
+    }
+  }
+
+  return {
+    fields,
+    fieldsFound: Array.from(fieldsFoundSet),
+    notes: notes.length > 0 ? notes.join(' ') : undefined,
+  };
+}
+
+const EXTRACTION_PROMPT = `You are extracting vehicle warranty claim data from portal screenshot(s).
+Read all visible text carefully — labels, form fields, tables, headers.
+Extract every field you can find. Use YYYY-MM-DD for dates.
+For currency amounts use numbers only (no $ sign).
+List every field name you successfully populated in fieldsFound.
+Leave fields blank if not visible or unreadable. Add notes for anything ambiguous.`;
+
+const MULTI_IMAGE_PROMPT = `${EXTRACTION_PROMPT}
+You may receive multiple images from different portal pages or sections.
+Combine information from ALL images — use whichever image has the clearest value for each field.`;
+
+function getVisionModel() {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error(
@@ -116,8 +155,54 @@ export async function extractClaimFromScreenshot(
   }
 
   const model = process.env.AI_VISION_MODEL ?? process.env.AI_MODEL ?? 'gpt-4o-mini';
-  const openai = createOpenAI({ apiKey });
-  const base64 = imageBuffer.toString('base64');
+  return { openai: createOpenAI({ apiKey }), model };
+}
+
+export async function extractClaimFromScreenshot(
+  imageBuffer: Buffer,
+  mimeType: string
+): Promise<ExtractionResult> {
+  return extractClaimFromScreenshots([{ buffer: imageBuffer, mimeType }]);
+}
+
+export async function extractClaimFromScreenshots(
+  images: Array<{ buffer: Buffer; mimeType: string }>
+): Promise<ExtractionResult> {
+  if (images.length === 0) {
+    throw new Error('At least one screenshot is required.');
+  }
+
+  const { openai, model } = getVisionModel();
+
+  if (images.length === 1) {
+    const { buffer, mimeType } = images[0];
+    const base64 = buffer.toString('base64');
+
+    const { object } = await generateObject({
+      model: openai(model),
+      schema: extractedClaimSchema,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: EXTRACTION_PROMPT },
+            { type: 'image', image: `data:${mimeType};base64,${base64}` },
+          ],
+        },
+      ],
+    });
+
+    const fields = normalizeExtractedClaim(object);
+    const fieldsFound = object.fieldsFound ?? Object.keys(fields);
+
+    logger.info('Screenshot extraction complete', {
+      imageCount: 1,
+      fieldsFound: fieldsFound.length,
+      model,
+    });
+
+    return { fields, fieldsFound, notes: object.notes };
+  }
 
   const { object } = await generateObject({
     model: openai(model),
@@ -126,19 +211,11 @@ export async function extractClaimFromScreenshot(
       {
         role: 'user',
         content: [
-          {
-            type: 'text',
-            text: `You are extracting vehicle warranty claim data from a portal screenshot.
-Read all visible text carefully — labels, form fields, tables, headers.
-Extract every field you can find. Use YYYY-MM-DD for dates.
-For currency amounts use numbers only (no $ sign).
-List every field name you successfully populated in fieldsFound.
-Leave fields blank if not visible or unreadable. Add notes for anything ambiguous.`,
-          },
-          {
-            type: 'image',
-            image: `data:${mimeType};base64,${base64}`,
-          },
+          { type: 'text', text: MULTI_IMAGE_PROMPT },
+          ...images.map(({ buffer, mimeType }) => ({
+            type: 'image' as const,
+            image: `data:${mimeType};base64,${buffer.toString('base64')}`,
+          })),
         ],
       },
     ],
@@ -148,13 +225,10 @@ Leave fields blank if not visible or unreadable. Add notes for anything ambiguou
   const fieldsFound = object.fieldsFound ?? Object.keys(fields);
 
   logger.info('Screenshot extraction complete', {
+    imageCount: images.length,
     fieldsFound: fieldsFound.length,
     model,
   });
 
-  return {
-    fields,
-    fieldsFound,
-    notes: object.notes,
-  };
+  return { fields, fieldsFound, notes: object.notes };
 }

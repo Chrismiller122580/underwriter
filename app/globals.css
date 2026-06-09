@@ -530,18 +530,41 @@ a {
   display: none;
 }
 
-.screenshot-preview {
+.screenshot-preview-grid {
   margin-top: 16px;
-  max-width: 480px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.screenshot-preview-card {
   border: 1px solid #d0daf0;
   border-radius: 8px;
   overflow: hidden;
+  background: #fff;
 }
 
-.screenshot-preview img {
+.screenshot-preview-card img {
   display: block;
   width: 100%;
-  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.screenshot-preview-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.screenshot-preview-name {
+  font-size: 12px;
+  color: #4a5568;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .input-autofilled {

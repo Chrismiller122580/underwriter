@@ -179,7 +179,9 @@ export function ClaimForm() {
       }
       return next;
     });
-    setAutofilled(new Set(meta.fieldsFound));
+    setAutofilled(
+      (prev) => new Set([...Array.from(prev), ...meta.fieldsFound])
+    );
     setErrors({});
   }
 
