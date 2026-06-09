@@ -1,0 +1,22 @@
+{
+  "name": "FWCUT Underwriter",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-20-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "forwardPorts": [3000, 5432],
+  "portsAttributes": {
+    "3000": { "label": "Next.js App", "onAutoForward": "openBrowser" },
+    "5432": { "label": "PostgreSQL" }
+  },
+  "postCreateCommand": "npm install",
+  "postStartCommand": "docker compose up -d postgres",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  }
+}

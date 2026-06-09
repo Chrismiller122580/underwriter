@@ -1,0 +1,399 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: #f4f4f9;
+  margin: 0;
+  color: #333;
+}
+
+a {
+  color: #0056b3;
+}
+
+.container {
+  width: min(960px, 92%);
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+}
+
+.button {
+  display: inline-block;
+  background-color: #0056b3;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 4px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.button:hover {
+  background-color: #004494;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.button-sm {
+  font-size: 14px;
+  padding: 8px 14px;
+}
+
+.button-secondary {
+  background-color: #555;
+}
+
+.button-secondary:hover {
+  background-color: #444;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #e8f0fe;
+  color: #0056b3;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Nav */
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.nav-brand {
+  font-weight: 700;
+  font-size: 18px;
+  text-decoration: none;
+  color: #0056b3;
+}
+
+.nav-links {
+  display: flex;
+  gap: 20px;
+}
+
+.nav-links a {
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.nav-links a:hover {
+  text-decoration: underline;
+}
+
+/* Page layout */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.page-intro {
+  color: #555;
+  line-height: 1.5;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+
+.back-link {
+  margin-top: 24px;
+  display: inline-block;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 32px;
+}
+
+.feature-card {
+  background: #f8f9fc;
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #e8ecf4;
+}
+
+.feature-card h3 {
+  margin: 0 0 8px;
+  color: #0056b3;
+}
+
+.feature-card p {
+  margin: 0;
+  font-size: 14px;
+  color: #555;
+  line-height: 1.4;
+}
+
+/* Form */
+.claim-form {
+  margin-top: 24px;
+}
+
+.form-section {
+  margin-bottom: 32px;
+}
+
+.form-section h2 {
+  color: #0056b3;
+  border-bottom: 2px solid #0056b3;
+  padding-bottom: 6px;
+  margin-bottom: 16px;
+  font-size: 18px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.form-field {
+  margin-bottom: 16px;
+}
+
+.form-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.form-field input,
+.form-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font: inherit;
+}
+
+.form-field textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.form-field input:focus,
+.form-field textarea:focus {
+  outline: 2px solid #0056b3;
+  outline-offset: 1px;
+  border-color: #0056b3;
+}
+
+.input-error {
+  border-color: #b00020 !important;
+}
+
+.field-error {
+  display: block;
+  color: #b00020;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.form-hint {
+  font-size: 13px;
+  color: #666;
+  margin: -8px 0 16px;
+}
+
+.form-success {
+  color: #1b7f4e;
+  font-weight: 600;
+  margin: 16px 0;
+}
+
+.form-error {
+  color: #b00020;
+  font-weight: 600;
+  margin: 16px 0;
+}
+
+.progress-wrap {
+  margin: 20px 0;
+  background: #e8ecf4;
+  border-radius: 4px;
+  height: 28px;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: #0056b3;
+  transition: width 0.2s ease;
+  border-radius: 4px;
+}
+
+.progress-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Dashboard */
+.loading,
+.empty-state {
+  margin-top: 24px;
+  color: #555;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.stat-card {
+  background: #f8f9fc;
+  border: 1px solid #e8ecf4;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-value {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  color: #0056b3;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stat-pending .stat-value { color: #9a6b00; }
+.stat-approved .stat-value { color: #1b7f4e; }
+.stat-denied .stat-value { color: #b00020; }
+
+.claims-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.claim-card {
+  border: 1px solid #e8ecf4;
+  border-radius: 8px;
+  padding: 20px;
+  background: #fafbfd;
+}
+
+.claim-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.claim-card-header h3 {
+  margin: 0 0 4px;
+}
+
+.claim-meta {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.status-pending { background: #e8f0fe; color: #0056b3; }
+.status-approved { background: #e6f4ec; color: #1b7f4e; }
+.status-denied { background: #fde8e8; color: #b00020; }
+.status-under_review { background: #fff3cd; color: #9a6b00; }
+
+.claim-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 16px 0 0;
+}
+
+.claim-details dt {
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.claim-details dd {
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+
+.underwriting-note {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: #555;
+  font-style: italic;
+}
+
+.claim-card-actions {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e8ecf4;
+}
+
+.done-label {
+  font-size: 13px;
+  color: #888;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #0056b3;
+  cursor: pointer;
+  text-decoration: underline;
+  font: inherit;
+  padding: 0;
+}

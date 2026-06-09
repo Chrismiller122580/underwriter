@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claim Information Form</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 80%;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        h2 {
+            color: #0056b3;
+            border-bottom: 2px solid #0056b3;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="date"], input[type="number"], input[type="file"], textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        textarea {
+            height: 100px;
+        }
+        button {
+            background-color: #0056b3;
+            color: white;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #004494;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Claim Information Form</h1>
+        <form id="claimForm" enctype="multipart/form-data">
+            <h2>Policy Information</h2>
+            <label for="policyNumber">Policy Number:</label>
+            <input type="text" id="policyNumber" name="policyNumber" required>
+            <label for="coverageDetails">Coverage Details:</label>
+            <input type="text" id="coverageDetails" name="coverageDetails" required>
+            <label for="policyEffectiveDate">Policy Effective Date:</label>
+            <input type="date" id="policyEffectiveDate" name="policyEffectiveDate" required>
+            <label for="policyExpirationDate">Policy Expiration Date:</label>
+            <input type="date" id="policyExpirationDate" name="policyExpirationDate" required>
+
+            <h2>Vehicle Information</h2>
+            <label for="vin">VIN:</label>
+            <input type="text" id="vin" name="vin" required>
+            <label for="make">Make:</label>
+            <input type="text" id="make" name="make" required>
+            <label for="model">Model:</label>
+            <input type="text" id="model" name="model" required>
+            <label for="year">Year:</label>
+            <input type="number" id="year" name="year" required>
+            <label for="odometerReading">Odometer Reading:</label>
+            <input type="number" id="odometerReading" name="odometerReading" required>
+
+            <h2>Claimant Information</h2>
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" required>
+            <label for="contactInformation">Contact Information:</label>
+            <input type="text" id="contactInformation" name="contactInformation" required>
+            <label for="relationshipToVehicle">Relationship to Vehicle:</label>
+            <input type="text" id="relationshipToVehicle" name="relationshipToVehicle" required>
+
+            <h2>Incident Details</h2>
+            <label for="dateOfLoss">Date of Loss:</label>
+            <input type="date" id="dateOfLoss" name="dateOfLoss" required>
+            <label for="descriptionOfIncident">Description of the Incident:</label>
+            <textarea id="descriptionOfIncident" name="descriptionOfIncident" required></textarea>
+            <label for="locationOfIncident">Location of Incident:</label>
+            <input type="text" id="locationOfIncident" name="locationOfIncident" required>
+
+            <h2>Repair Information</h2>
+            <label for="repairEstimate">Repair Estimate:</label>
+            <input type="number" id="repairEstimate" name="repairEstimate" required>
+            <label for="detailedRepairDescription">Detailed Repair Description:</label>
+            <textarea id="detailedRepairDescription" name="detailedRepairDescription" required></textarea>
+            <label for="repairShopInformation">Repair Shop Information:</label>
+            <input type="text" id="repairShopInformation" name="repairShopInformation" required>
+
+            <h2>Supporting Documentation</h2>
+            <label for="proofOfOwnership">Proof of Ownership:</label>
+            <input type="file" id="proofOfOwnership" name="proofOfOwnership" required>
+            <label for="maintenanceRecords">Maintenance Records:</label>
+            <input type="file" id="maintenanceRecords" name="maintenanceRecords" required>
+            <label for="priorClaimsHistory">Prior Claims History:</label>
+            <input type="file" id="priorClaimsHistory" name="priorClaimsHistory" required>
+            <label for="policy">Policy:</label>
+            <input type="file" id="policy" name="policy" required>
+            <label for="inspectionReports">Inspection Reports:</label>
+            <input type="file" id="inspectionReports" name="inspectionReports" required>
+            <label for="serviceHistory">Service History:</label>
+            <input type="file" id="serviceHistory" name="serviceHistory" required>
+
+            <button type="submit" id="submitBtn">Submit</button>
+            <p id="formMessage" style="margin-top: 16px;"></p>
+        </form>
+    </div>
+    <script>
+        document.getElementById('claimForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const msg = document.getElementById('formMessage');
+            btn.disabled = true;
+            btn.textContent = 'Submitting…';
+            msg.textContent = '';
+            msg.style.color = '#333';
+
+            try {
+                const formData = new FormData(e.target);
+                const response = await fetch('/api/claims', {
+                    method: 'POST',
+                    body: formData,
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Submission failed');
+                }
+
+                msg.style.color = '#1b7f4e';
+                msg.textContent = 'Claim submitted! Redirecting to dashboard…';
+                setTimeout(() => { window.location.href = '/claims'; }, 1200);
+            } catch (err) {
+                msg.style.color = '#b00020';
+                msg.textContent = err.message || 'Submission failed. Please try again.';
+                btn.disabled = false;
+                btn.textContent = 'Submit';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+CREATE TABLE IF NOT EXISTS claims (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  policy_information JSONB NOT NULL,
+  vehicle_info JSONB NOT NULL,
+  claimant_information JSONB NOT NULL,
+  incident_details JSONB NOT NULL,
+  repair_information JSONB NOT NULL,
+  claim_details JSONB NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  underwriting JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_claims_status ON claims(status);
+CREATE INDEX IF NOT EXISTS idx_claims_created_at ON claims(created_at DESC);
