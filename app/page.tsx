@@ -2,10 +2,10 @@ import Link from 'next/link';
 
 export default function HomePage() {
   return (
-    <main className="container" style={{ marginTop: 32 }}>
+    <main className="container page-main">
       <div className="card">
         <p className="badge">FWCUT Underwriter</p>
-        <h1 style={{ marginTop: 12 }}>Claims Underwriting Platform</h1>
+        <h1 className="page-title">Claims Underwriting Platform</h1>
         <p className="page-intro">
           Submit vehicle warranty claims, upload supporting documents, and run
           automated policy validation — all from your browser.

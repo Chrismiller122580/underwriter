@@ -9,10 +9,10 @@ export default function LoginPage({
     searchParams.role === 'supervisor' ? 'supervisor' : 'adjuster';
 
   return (
-    <main className="container" style={{ marginTop: 32 }}>
-      <div className="card" style={{ maxWidth: 420, margin: '0 auto' }}>
+    <main className="container page-main">
+      <div className="card login-card">
         <p className="badge">Staff Access</p>
-        <h1 style={{ marginTop: 12 }}>Sign In</h1>
+        <h1 className="page-title">Sign In</h1>
         <p className="page-intro">
           Choose adjuster or supervisor, then enter the matching password.
           Supervisors can upload AI underwriting knowledge.

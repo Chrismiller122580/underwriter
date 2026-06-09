@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AiInsights } from '@/components/AiInsights';
 import { KnowledgeManager } from '@/components/KnowledgeManager';
@@ -153,11 +152,7 @@ export function SupervisorToolbox() {
             </button>
           ))}
         </nav>
-        <div className="toolbox-sidebar-actions">
-          <Link href="/claims" className="button button-secondary">
-            Claims dashboard
-          </Link>
-        </div>
+
       </aside>
 
       <div className="toolbox-panel">

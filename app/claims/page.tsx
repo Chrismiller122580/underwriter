@@ -1,16 +1,18 @@
 import Link from 'next/link';
 import { ClaimsDashboard } from '@/components/ClaimsDashboard';
-import { SupervisorKnowledgeLink } from '@/components/SupervisorKnowledgeLink';
 
 export default function ClaimsPage() {
   return (
-    <main className="container" style={{ marginTop: 32 }}>
+    <main className="container page-main">
       <div className="card">
         <div className="page-header">
           <div>
             <p className="badge">AI-Powered Dashboard</p>
-            <h1 style={{ marginTop: 12 }}>Claims Intelligence</h1>
-            <SupervisorKnowledgeLink />
+            <h1 className="page-title">Claims Intelligence</h1>
+            <p className="page-intro">
+              Review submissions, run AI underwriting, and act on information
+              requests and guideline flags.
+            </p>
           </div>
           <Link href="/submit" className="button">
             Submit New Claim
@@ -18,10 +20,6 @@ export default function ClaimsPage() {
         </div>
 
         <ClaimsDashboard />
-
-        <Link href="/" className="back-link">
-          ← Back to home
-        </Link>
       </div>
     </main>
   );

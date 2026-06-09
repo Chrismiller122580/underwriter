@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { SupervisorToolbox } from '@/components/SupervisorToolbox';
 import { canManageKnowledge, getSessionFromCookies } from '@/lib/auth';
@@ -15,12 +14,12 @@ export default async function SupervisorToolboxPage() {
   }
 
   return (
-    <main className="container toolbox-page">
+    <main className="container-wide page-main">
       <div className="card toolbox-shell">
-        <div className="page-header">
+        <div className="page-header page-header-stack">
           <div>
             <p className="badge">Freedom Warranty AI</p>
-            <h1 style={{ marginTop: 12 }}>Supervisor Toolbox</h1>
+            <h1 className="page-title">Supervisor Toolbox</h1>
             <p className="page-intro">
               Train Grok with underwriting knowledge, inspect prompts, test
               scenarios, and run bulk AI operations across the claims portfolio.
@@ -29,10 +28,6 @@ export default async function SupervisorToolboxPage() {
         </div>
 
         <SupervisorToolbox />
-
-        <Link href="/" className="back-link">
-          ← Back to home
-        </Link>
       </div>
     </main>
   );
