@@ -5,9 +5,11 @@ import { useState } from 'react';
 export function AnalyzeButton({
   claimId,
   onComplete,
+  label = 'Run AI Scan',
 }: {
   claimId: string;
   onComplete?: () => void;
+  label?: string;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +49,7 @@ export function AnalyzeButton({
         onClick={handleAnalyze}
         disabled={loading}
       >
-        {loading ? 'Analyzing…' : 'Run AI Scan'}
+        {loading ? 'Analyzing…' : label}
       </button>
       {error && <p className="field-error">{error}</p>}
     </div>

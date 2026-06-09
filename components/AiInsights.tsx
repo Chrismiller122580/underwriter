@@ -1,21 +1,4 @@
-type AiAnalysis = {
-  summary: string;
-  riskScore: number;
-  recommendation: string;
-  reasoning: string;
-  flags: string[];
-  fraudIndicators: string[];
-  confidence: number;
-  model: string;
-  contractValid?: boolean | null;
-  waitingPeriodMet?: boolean | null;
-  componentCovered?: boolean | null;
-  maintenanceConcern?: boolean | null;
-  inspectionRecommended?: boolean | null;
-  denialCategory?: string | null;
-  informationRequests?: string[];
-  guidelineConflicts?: string[];
-};
+import type { AiAnalysis } from '@/lib/ai-types';
 
 function riskClass(score: number) {
   if (score >= 8) return 'risk-high';

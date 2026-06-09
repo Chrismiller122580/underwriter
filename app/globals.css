@@ -832,6 +832,366 @@ html {
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid #e8ecf4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.adjuster-portal-shell {
+  padding-bottom: 28px;
+}
+
+.adjuster-portal {
+  margin-top: 8px;
+}
+
+.portal-queue-insight {
+  margin: 0 0 4px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #3730a3;
+  line-height: 1.5;
+}
+
+.portal-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.portal-stat-card {
+  padding: 12px 10px;
+}
+
+.portal-stat-card .stat-value {
+  font-size: 22px;
+}
+
+.portal-stat-clickable {
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  width: 100%;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.portal-stat-clickable:hover {
+  border-color: #a5b4fc;
+  box-shadow: 0 2px 8px rgba(74, 63, 191, 0.08);
+}
+
+.portal-stat-active {
+  border-color: #4a3fbf;
+  box-shadow: 0 0 0 2px rgba(74, 63, 191, 0.15);
+}
+
+.portal-toolbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) repeat(3, minmax(130px, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.portal-filter-group {
+  display: grid;
+  gap: 4px;
+}
+
+.portal-filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.portal-search,
+.portal-toolbar select {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font: inherit;
+  background: #fff;
+}
+
+.portal-results-meta {
+  margin: 14px 0 10px;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.claim-workbench-card {
+  background: #fff;
+  border-color: #dbe3ef;
+}
+
+.claim-workbench-card.claim-needs-action {
+  border-left: 4px solid #4a3fbf;
+  box-shadow: 0 4px 14px rgba(74, 63, 191, 0.06);
+}
+
+.claim-card-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.claim-priority-badge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5b21b6;
+  background: #ede9fe;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.claim-next-action {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.claim-next-action-ready {
+  background: #ecfdf5;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.claim-next-action-review {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.claim-next-action-blocked {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.claim-next-action-done {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.claim-signal-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.claim-signal {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.claim-signal-info {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.claim-signal-guideline {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.claim-signal-docs {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.claim-signal-pending-ai {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.claim-details-compact {
+  margin-top: 12px;
+}
+
+.claim-repair-snippet {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.claim-expanded {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.claim-expanded-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.claim-panel {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.claim-panel h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.claim-panel-rules .rule-decision {
+  display: inline-block;
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.rule-decision-approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.rule-decision-denied {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.rule-decision-pending {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.claim-readiness-warnings {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.claim-readiness-warnings ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: #92400e;
+}
+
+.claim-panel-title {
+  margin: 0 0 8px;
+  font-weight: 700;
+  color: #0056b3;
+}
+
+.claim-panel ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.claim-panel-meta {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.claim-panel-subhead {
+  margin: 10px 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.claim-doc-list,
+.claim-doc-missing {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+}
+
+.claim-doc-missing {
+  color: #b45309;
+}
+
+.ai-rec-pill {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.ai-rec-pill.rec-approve {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.ai-rec-pill.rec-review {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.ai-rec-pill.rec-deny {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.underwriting-decision-box {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.underwriting-decision-box p {
+  margin: 6px 0 0;
+}
+
+.claim-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 900px) {
+  .portal-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .portal-toolbar .button {
+    grid-column: 1 / -1;
+  }
 }
 
 .done-label {
