@@ -32,6 +32,9 @@ export function AuthNav() {
     <div className="nav-auth">
       {session?.authenticated ? (
         <>
+          {session.role === 'supervisor' && (
+            <Link href="/admin/knowledge">AI Knowledge</Link>
+          )}
           <span className="nav-role">{session.role}</span>
           <button type="button" className="link-button" onClick={handleLogout}>
             Sign out

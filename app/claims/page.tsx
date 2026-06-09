@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ClaimsDashboard } from '@/components/ClaimsDashboard';
+import { SupervisorKnowledgeLink } from '@/components/SupervisorKnowledgeLink';
 
 export default function ClaimsPage() {
   return (
@@ -9,6 +10,7 @@ export default function ClaimsPage() {
           <div>
             <p className="badge">AI-Powered Dashboard</p>
             <h1 style={{ marginTop: 12 }}>Claims Intelligence</h1>
+            <SupervisorKnowledgeLink />
           </div>
           <Link href="/submit" className="button">
             Submit New Claim

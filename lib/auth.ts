@@ -74,3 +74,7 @@ export function verifyAdjusterPassword(password: string): Session | null {
 export function canUnderwrite(role: UserRole): boolean {
   return role === 'adjuster' || role === 'supervisor';
 }
+
+export function canManageKnowledge(role: UserRole): boolean {
+  return role === 'supervisor';
+}

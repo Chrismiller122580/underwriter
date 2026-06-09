@@ -668,3 +668,103 @@ a {
   color: #b45309;
   font-weight: 600;
 }
+
+/* Supervisor knowledge base */
+.knowledge-manager {
+  display: grid;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.knowledge-upload-card,
+.knowledge-list-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 20px;
+  background: #fafbfd;
+}
+
+.knowledge-upload-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.knowledge-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.knowledge-count {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.knowledge-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.knowledge-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.knowledge-item.inactive {
+  opacity: 0.72;
+}
+
+.knowledge-item-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.knowledge-category-badge,
+.knowledge-inactive-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.knowledge-category-badge {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.knowledge-inactive-badge {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.knowledge-meta,
+.knowledge-preview,
+.knowledge-notes {
+  font-size: 13px;
+  color: #64748b;
+  margin: 6px 0 0;
+}
+
+.knowledge-item-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.link-button.danger {
+  color: #b00020;
+}

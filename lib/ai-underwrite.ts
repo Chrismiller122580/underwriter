@@ -9,7 +9,7 @@ import {
   FILE_FIELD_LABELS,
   FILE_FIELDS,
 } from '@/lib/parse-claim-form';
-import { buildUnderwritingSystemPrompt } from '@/lib/underwriting-guidelines';
+import { buildUnderwritingSystemPrompt } from '@/lib/knowledge-prompt';
 
 function buildDocumentStatus(claim: ClaimRecord) {
   const attached = claim.claimDetails.attachedDocuments ?? {};
@@ -63,10 +63,15 @@ export async function analyzeClaimWithAi(claim: ClaimRecord): Promise<AiAnalysis
     const contractType = claim.policyInformation.contractType ?? 'unknown';
     const contractVariant = claim.policyInformation.contractVariant ?? 'standard';
 
+    const systemPrompt = await buildUnderwritingSystemPrompt(
+      contractType,
+      contractVariant
+    );
+
     const { object } = await generateObject({
       model: xai(model),
       schema: aiAnalysisSchema,
-      system: buildUnderwritingSystemPrompt(contractType, contractVariant),
+      system: systemPrompt,
       prompt: `Analyze this warranty claim per Freedom Warranty underwriting guidelines.
 
 Contract context:

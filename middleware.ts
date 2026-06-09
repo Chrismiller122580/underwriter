@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getSessionFromRequest } from '@/lib/auth';
+import { canManageKnowledge, getSessionFromRequest } from '@/lib/auth';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -13,11 +13,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const isProtectedPage = pathname.startsWith('/claims');
+  const isAdminPage = pathname.startsWith('/admin');
+  const isAdminApi = pathname.startsWith('/api/admin');
+  const isProtectedPage = pathname.startsWith('/claims') || isAdminPage;
   const isProtectedApi =
     (pathname === '/api/claims' && request.method === 'GET') ||
     (pathname.match(/^\/api\/claims\/[^/]+\/(underwrite|analyze)$/) &&
-      request.method === 'POST');
+      request.method === 'POST') ||
+    isAdminApi;
 
   if (!isProtectedPage && !isProtectedApi) {
     return NextResponse.next();
@@ -35,6 +38,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  if (isAdminPage || isAdminApi) {
+    if (!canManageKnowledge(session.role)) {
+      if (isAdminApi) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      return NextResponse.redirect(new URL('/claims', request.url));
+    }
+  }
+
   return NextResponse.next();
 }
 
@@ -42,7 +54,11 @@ export const config = {
   matcher: [
     '/claims',
     '/claims/:path*',
+    '/admin',
+    '/admin/:path*',
     '/api/claims',
     '/api/claims/:path*',
+    '/api/admin',
+    '/api/admin/:path*',
   ],
 };
