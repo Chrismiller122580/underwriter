@@ -33,6 +33,10 @@ export function ClaimsDashboard() {
     setError(null);
     try {
       const response = await fetch('/api/claims');
+      if (response.status === 401) {
+        window.location.href = '/login?next=/claims';
+        return;
+      }
       if (!response.ok) throw new Error('Failed to load claims');
       const data = await response.json();
       setClaims(data);

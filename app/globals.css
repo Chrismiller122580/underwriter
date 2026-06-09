@@ -103,6 +103,22 @@ a {
   text-decoration: underline;
 }
 
+.nav-auth {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-role {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #666;
+  background: #f0f0f0;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
 /* Page layout */
 .page-header {
   display: flex;

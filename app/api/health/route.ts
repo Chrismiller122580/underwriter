@@ -4,6 +4,6 @@ export async function GET() {
   return NextResponse.json({
     status: 'ok',
     service: 'fwcut-underwriter',
-    phase: 4,
+    phase: 5,
   });
 }

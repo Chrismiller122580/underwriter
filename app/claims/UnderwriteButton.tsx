@@ -23,6 +23,11 @@ export function UnderwriteButton({
         method: 'POST',
       });
 
+      if (response.status === 401) {
+        window.location.href = '/login?next=/claims';
+        return;
+      }
+
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
         throw new Error(body.error ?? 'Underwriting failed');

@@ -2,7 +2,19 @@
 
 Vehicle warranty claims intake, document upload, and automated policy underwriting.
 
-**Stack:** Next.js 14 · Vercel Postgres (Neon) · Vercel Blob · GitHub Actions · Vercel
+**Stack:** Next.js 14 · Vercel Postgres (Neon) · Vercel Blob · JWT Auth · GitHub Actions · Vercel
+
+---
+
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| **Claim submission** | Public form at `/submit` with document upload |
+| **Adjuster auth** | Password-protected dashboard and underwriting |
+| **Rate limiting** | 10 claim submissions per hour per IP |
+| **Structured logging** | JSON logs (visible in Vercel Runtime Logs) |
+| **Auto underwriting** | Policy date validation on pending claims |
 
 ---
 
@@ -15,82 +27,65 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:3000**
+| Variable | Purpose |
+|----------|---------|
+| `POSTGRES_URL` | Local Docker Postgres |
+| `AUTH_SECRET` | JWT signing key (32+ chars) |
+| `ADJUSTER_PASSWORD` | Login password for adjusters |
+| `SUPERVISOR_PASSWORD` | Optional supervisor password |
 
-| Variable | Local value |
-|----------|-------------|
-| `POSTGRES_URL` | `postgresql://postgres:pass@localhost:5432/warranty_claims` |
-| `NEXT_PUBLIC_USE_BLOB_UPLOAD` | `false` |
+**Default local login:** password from `ADJUSTER_PASSWORD` in `.env.local`
 
 ---
 
-## Deploy to Vercel (step-by-step)
+## Deploy to Vercel
 
-Repo: **https://github.com/Chrismiller122580/underwriter**
+### Storage (if not already added)
+1. **Storage → Postgres** — sets `POSTGRES_URL`
+2. **Storage → Blob** — sets `BLOB_READ_WRITE_TOKEN`
 
-### 1. Push code to GitHub
+### Environment variables
 
-```bash
-git add .
-git commit -m "FWCUT Next.js app with Vercel Postgres"
-git push origin main
-```
+| Key | Value | Required |
+|-----|-------|----------|
+| `NEXT_PUBLIC_USE_BLOB_UPLOAD` | `true` | Yes |
+| `AUTH_SECRET` | Random 32+ char string (`openssl rand -base64 32`) | Yes |
+| `ADJUSTER_PASSWORD` | Strong production password | Yes |
+| `SUPERVISOR_PASSWORD` | Supervisor password (optional) | No |
 
-### 2. Create Vercel Postgres database
+`POSTGRES_URL` and `BLOB_READ_WRITE_TOKEN` are set automatically by Vercel Storage.
 
-1. [vercel.com](https://vercel.com) → your project → **Storage** tab
-2. Click **Create Database** → choose **Postgres** (powered by Neon)
-3. Vercel automatically sets `POSTGRES_URL` for your project
+### User roles
 
-### 3. Create Vercel Blob storage
-
-1. Same **Storage** tab → **Create Database** → **Blob**
-2. Vercel sets `BLOB_READ_WRITE_TOKEN` automatically
-
-### 4. Add one manual env var
-
-In **Settings → Environment Variables**, add:
-
-| Key | Value | Environments |
-|-----|-------|--------------|
-| `NEXT_PUBLIC_USE_BLOB_UPLOAD` | `true` | Production + Preview |
-
-`POSTGRES_URL` and `BLOB_READ_WRITE_TOKEN` are set automatically by Storage.
-
-### 5. Redeploy
-
-Vercel rebuilds on push. After adding Storage, click **Redeploy** on the latest deployment.
-
-### 6. Verify
-
-- `/` — home page loads
-- `/submit` — submit a test claim with documents
-- `/claims` — claim appears in dashboard
-- Click **Underwrite** on a pending claim
+| Role | Access |
+|------|--------|
+| **Public** | Submit claims at `/submit` |
+| **Adjuster** | View dashboard, run underwriting |
+| **Supervisor** | Same as adjuster (separate password) |
 
 ---
 
 ## API routes
 
-| Route | Method | Description |
-|-------|--------|-------------|
-| `/api/claims` | GET | List all claims |
-| `/api/claims` | POST | Submit claim (multipart or JSON) |
-| `/api/claims/:id/underwrite` | POST | Run policy validation |
-| `/api/upload` | POST | Blob upload handler (production) |
-| `/api/health` | GET | Health check |
+| Route | Auth | Description |
+|-------|------|-------------|
+| `POST /api/claims` | Public (rate limited) | Submit claim |
+| `GET /api/claims` | Adjuster | List claims |
+| `POST /api/claims/:id/underwrite` | Adjuster | Run underwriting |
+| `POST /api/auth/login` | Public | Sign in |
+| `POST /api/auth/logout` | Public | Sign out |
+| `GET /api/auth/session` | Public | Check session |
+| `GET /api/health` | Public | Health check |
 
 ---
 
 ## Project structure
 
 ```
-app/              Next.js pages + API routes
-components/       ClaimForm, ClaimsDashboard, Nav
-lib/              db, claims-store, underwrite, uploads
-public/           Static assets + legacy form fallback
-docker-compose.yml  Local Postgres (dev only)
-vercel.json       Vercel build config
+app/              Pages + API routes
+components/       ClaimForm, ClaimsDashboard, LoginForm, Nav
+lib/              auth, claims-store, logger, rate-limit, underwrite
+middleware.ts     Protects /claims and adjuster API routes
 ```
 
 ---
@@ -103,4 +98,4 @@ vercel.json       Vercel build config
 | 2 — API + database | ✅ |
 | 3 — Frontend | ✅ |
 | 4 — Vercel + Postgres + Blob | ✅ |
-| 5 — Hardening (auth, rate limits) | Planned |
+| 5 — Auth, rate limits, logging | ✅ |

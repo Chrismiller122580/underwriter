@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AuthNav } from './AuthNav';
 
 export function Nav() {
   return (
@@ -9,6 +10,7 @@ export function Nav() {
       <div className="nav-links">
         <Link href="/submit">Submit Claim</Link>
         <Link href="/claims">Dashboard</Link>
+        <AuthNav />
       </div>
     </nav>
   );

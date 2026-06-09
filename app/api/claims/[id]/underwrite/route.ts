@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import {
+  canUnderwrite,
+  getSessionFromCookies,
+} from '@/lib/auth';
+import {
   isValidClaimId,
   underwriteClaimById,
 } from '@/lib/claims-store';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +17,11 @@ type RouteContext = {
 
 export async function POST(_request: Request, context: RouteContext) {
   const { id } = context.params;
+
+  const session = await getSessionFromCookies();
+  if (!session || !canUnderwrite(session.role)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   if (!isValidClaimId(id)) {
     return NextResponse.json({ error: 'Invalid claim ID' }, { status: 400 });
@@ -25,6 +35,12 @@ export async function POST(_request: Request, context: RouteContext) {
 
     const { claim, result } = outcome;
 
+    logger.info('Claim underwritten', {
+      claimId: id,
+      decision: result.decision,
+      role: session.role,
+    });
+
     return NextResponse.json({
       id: claim._id,
       decision: result.decision,
@@ -32,7 +48,10 @@ export async function POST(_request: Request, context: RouteContext) {
       status: claim.status,
     });
   } catch (error) {
-    console.error(`POST /api/claims/${id}/underwrite failed:`, error);
+    logger.error('Underwrite failed', {
+      claimId: id,
+      error: error instanceof Error ? error.message : 'unknown',
+    });
     return NextResponse.json(
       { error: 'Failed to underwrite claim' },
       { status: 500 }

@@ -40,5 +40,13 @@ export async function ensureSchema(): Promise<void> {
   await sql`CREATE INDEX IF NOT EXISTS idx_claims_status ON claims(status)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_claims_created_at ON claims(created_at DESC)`;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      id TEXT PRIMARY KEY,
+      hits INT NOT NULL DEFAULT 1,
+      reset_at TIMESTAMPTZ NOT NULL
+    )
+  `;
+
   schemaReady = true;
 }

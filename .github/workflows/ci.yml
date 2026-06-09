@@ -42,3 +42,5 @@ jobs:
         env:
           POSTGRES_URL: postgresql://postgres:pass@localhost:5432/warranty_claims
           NEXT_PUBLIC_USE_BLOB_UPLOAD: 'false'
+          AUTH_SECRET: ci-build-secret-key-at-least-32-chars-long
+          ADJUSTER_PASSWORD: test-password

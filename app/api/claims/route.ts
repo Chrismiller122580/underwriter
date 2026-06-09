@@ -5,21 +5,32 @@ import {
   listClaims,
   updateClaimDocuments,
 } from '@/lib/claims-store';
+import { getSessionFromCookies } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 import {
   extractFilesFromFormData,
   parseClaimFormData,
   parseClaimJson,
 } from '@/lib/parse-claim-form';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { saveUploadedFiles } from '@/lib/uploads';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    const session = await getSessionFromCookies();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const claims = await listClaims();
+    logger.info('Claims listed', { role: session.role, count: claims.length });
     return NextResponse.json(claims);
   } catch (error) {
-    console.error('GET /api/claims failed:', error);
+    logger.error('GET /api/claims failed', {
+      error: error instanceof Error ? error.message : 'unknown',
+    });
     return NextResponse.json(
       { error: 'Failed to fetch claims' },
       { status: 500 }
@@ -28,6 +39,24 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const ip = getClientIp(request);
+  const rateLimit = await checkRateLimit(`submit:${ip}`, 10, 60 * 60 * 1000);
+
+  if (!rateLimit.allowed) {
+    logger.warn('Rate limit exceeded', { ip });
+    return NextResponse.json(
+      { error: 'Too many submissions. Please try again later.' },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(
+            Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000)
+          ),
+        },
+      }
+    );
+  }
+
   try {
     const contentType = request.headers.get('content-type') ?? '';
 
@@ -37,6 +66,7 @@ export async function POST(request: Request) {
       const { documents, ...fields } = parsed;
 
       const claim = await createClaim(fields, documents);
+      logger.info('Claim submitted via JSON', { claimId: claim._id, ip });
 
       return NextResponse.json(
         {
@@ -59,6 +89,8 @@ export async function POST(request: Request) {
       await updateClaimDocuments(claim._id, savedPaths);
     }
 
+    logger.info('Claim submitted via form', { claimId: claim._id, ip });
+
     return NextResponse.json(
       {
         id: claim._id,
@@ -69,13 +101,17 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     if (error instanceof ZodError) {
+      logger.warn('Claim validation failed', { ip });
       return NextResponse.json(
         { error: 'Validation failed', details: error.flatten() },
         { status: 400 }
       );
     }
 
-    console.error('POST /api/claims failed:', error);
+    logger.error('POST /api/claims failed', {
+      ip,
+      error: error instanceof Error ? error.message : 'unknown',
+    });
     return NextResponse.json(
       { error: 'Failed to submit claim' },
       { status: 500 }
