@@ -15,7 +15,7 @@ Vehicle warranty claims intake, document upload, and automated policy underwriti
 | **Rate limiting** | 10 claim submissions per hour per IP |
 | **Structured logging** | JSON logs (visible in Vercel Runtime Logs) |
 | **Screenshot autofill** | Upload a portal screenshot — AI extracts and fills the claim form |
-| **AI underwriting** | GPT risk scoring, fraud detection, smart recommendations |
+| **AI underwriting** | Grok risk scoring, fraud detection, smart recommendations |
 | **Auto analysis** | Background AI scan on every new claim submission |
 
 ---
@@ -54,8 +54,9 @@ npm run dev
 | `AUTH_SECRET` | Random 32+ char string (`openssl rand -base64 32`) | Yes |
 | `ADJUSTER_PASSWORD` | Strong production password | Yes |
 | `SUPERVISOR_PASSWORD` | Supervisor password (optional) | No |
-| `OPENAI_API_KEY` | OpenAI API key for GPT analysis | Yes (prod) |
-| `AI_MODEL` | Model name (default `gpt-4o-mini`) | No |
+| `XAI_API_KEY` | xAI/Grok API key from [console.x.ai](https://console.x.ai) | Yes (prod) |
+| `AI_MODEL` | Text model (default `grok-3-mini`) | No |
+| `AI_VISION_MODEL` | Vision model for screenshot autofill (default `grok-3`) | No |
 
 `POSTGRES_URL` and `BLOB_READ_WRITE_TOKEN` are set automatically by Vercel Storage.
 

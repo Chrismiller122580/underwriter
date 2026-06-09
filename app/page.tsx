@@ -31,7 +31,7 @@ export default function HomePage() {
           </div>
           <div className="feature-card">
             <h3>AI Underwriting</h3>
-            <p>GPT-powered risk scoring, fraud detection, and smart approve/deny recommendations.</p>
+            <p>Grok-powered risk scoring, fraud detection, and smart approve/deny recommendations.</p>
           </div>
         </div>
       </div>

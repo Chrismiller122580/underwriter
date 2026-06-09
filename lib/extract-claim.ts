@@ -1,6 +1,6 @@
-import { createOpenAI } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
 import { z } from 'zod';
+import { getVisionModelId, requireXaiProvider } from '@/lib/ai-client';
 import { logger } from '@/lib/logger';
 
 export const EXTRACTABLE_FIELDS = [
@@ -174,15 +174,8 @@ You may receive multiple images from different portal pages or sections.
 Combine information from ALL images — use whichever image has the clearest value for each field.`;
 
 function getVisionModel() {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      'OPENAI_API_KEY is required for screenshot autofill. Add it in Vercel env settings.'
-    );
-  }
-
-  const model = process.env.AI_VISION_MODEL ?? process.env.AI_MODEL ?? 'gpt-4o-mini';
-  return { openai: createOpenAI({ apiKey }), model };
+  const xai = requireXaiProvider();
+  return { xai, model: getVisionModelId() };
 }
 
 export async function extractClaimFromScreenshot(
@@ -199,11 +192,11 @@ export async function extractClaimFromScreenshots(
     throw new Error('At least one screenshot is required.');
   }
 
-  const { openai, model } = getVisionModel();
+  const { xai, model } = getVisionModel();
   const prompt = images.length === 1 ? EXTRACTION_PROMPT : MULTI_IMAGE_PROMPT;
 
   const { object } = await generateObject({
-    model: openai(model),
+    model: xai(model),
     schema: extractedClaimSchema,
     messages: [
       {

@@ -1,5 +1,5 @@
-import { createOpenAI } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
+import { getTextModelId, getXaiProvider } from '@/lib/ai-client';
 import type { ClaimRecord } from '@/lib/claims-store';
 import { heuristicAnalysis } from '@/lib/ai-heuristic';
 import { aiAnalysisSchema, type AiAnalysis } from '@/lib/ai-types';
@@ -23,21 +23,20 @@ function buildClaimContext(claim: ClaimRecord): string {
 }
 
 export async function analyzeClaimWithAi(claim: ClaimRecord): Promise<AiAnalysis> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const xai = getXaiProvider();
 
-  if (!apiKey) {
-    logger.warn('OPENAI_API_KEY not set, using heuristic analysis', {
+  if (!xai) {
+    logger.warn('XAI_API_KEY not set, using heuristic analysis', {
       claimId: claim._id,
     });
     return heuristicAnalysis(claim);
   }
 
-  const model = process.env.AI_MODEL ?? 'gpt-4o-mini';
-  const openai = createOpenAI({ apiKey });
+  const model = getTextModelId();
 
   try {
     const { object } = await generateObject({
-      model: openai(model),
+      model: xai(model),
       schema: aiAnalysisSchema,
       system: `You are an expert vehicle warranty claims underwriter AI for FWCUT.
 Analyze claims for validity, consistency, and fraud risk.
