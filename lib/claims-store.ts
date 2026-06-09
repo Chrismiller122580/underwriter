@@ -6,12 +6,17 @@ import {
   combineDecisions,
 } from '@/lib/ai-underwrite';
 import type { AiAnalysis } from '@/lib/ai-types';
-import { underwriteClaim, type UnderwritingResult } from '@/lib/underwrite';
+import { evaluateContractRules } from '@/lib/contract-rules';
+import type { ContractTypeOrUnknown, ContractVariant } from '@/lib/contracts/types';
+import type { UnderwritingResult } from '@/lib/underwrite';
 
 export type ClaimRecord = {
   _id: string;
   policyInformation: {
     policyNumber: string;
+    contractType?: ContractTypeOrUnknown;
+    contractVariant?: ContractVariant;
+    contractTypeSource?: 'policy_number' | 'filename' | 'ai' | 'manual';
     coverageDetails: string;
     policyEffectiveDate: string;
     policyExpirationDate: string;
@@ -199,12 +204,7 @@ export async function underwriteClaimById(
   const claim = await getClaimById(id);
   if (!claim) return null;
 
-  const ruleResult = underwriteClaim({
-    policyEffectiveDate: new Date(claim.policyInformation.policyEffectiveDate),
-    policyExpirationDate: new Date(claim.policyInformation.policyExpirationDate),
-    dateOfLoss: new Date(claim.incidentDetails.dateOfLoss),
-    repairEstimate: claim.repairInformation.repairEstimate,
-  });
+  const ruleResult = evaluateContractRules(claim);
 
   const aiAnalysis = await analyzeClaimWithAi(claim);
   const combined = combineDecisions(ruleResult.decision, aiAnalysis);

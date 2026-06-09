@@ -71,6 +71,8 @@ export function heuristicAnalysis(claim: ClaimRecord): AiAnalysis {
         ? 'Claim has risk factors that require adjuster review before approval.'
         : 'Claim passes automated checks with acceptable risk profile.';
 
+  const contractType = claim.policyInformation.contractType ?? 'unknown';
+
   return {
     summary: `${claim.claimantInformation.name} filed a $${estimate.toLocaleString()} claim for a ${claim.vehicleInfo.year} ${claim.vehicleInfo.make} ${claim.vehicleInfo.model} after an incident on ${lossDate.toLocaleDateString()}.`,
     riskScore,
@@ -79,7 +81,16 @@ export function heuristicAnalysis(claim: ClaimRecord): AiAnalysis {
     flags,
     fraudIndicators,
     confidence: 65,
+    contractValid: !flags.some((f) => f.includes('not currently active') || f.includes('outside policy')),
+    waitingPeriodMet: null,
+    componentCovered: null,
+    maintenanceConcern: flags.some((f) => f.includes('document')),
+    inspectionRecommended: estimate > 5000 ? true : null,
+    denialCategory:
+      recommendation === 'deny' && flags.some((f) => f.includes('outside policy'))
+        ? 'invalid_contract'
+        : null,
     analyzedAt: new Date().toISOString(),
-    model: 'heuristic-v1',
+    model: `heuristic-v1${contractType !== 'unknown' ? `/${contractType}` : ''}`,
   };
 }

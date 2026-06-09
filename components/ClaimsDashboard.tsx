@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { UnderwriteButton } from '@/app/claims/UnderwriteButton';
+import { getContractDisplayName } from '@/lib/contracts/registry';
+import type { ContractTypeOrUnknown } from '@/lib/contracts/types';
 import { AiInsights } from './AiInsights';
 import { AnalyzeButton } from './AnalyzeButton';
 
@@ -15,6 +17,12 @@ type AiAnalysis = {
   fraudIndicators: string[];
   confidence: number;
   model: string;
+  contractValid?: boolean | null;
+  waitingPeriodMet?: boolean | null;
+  componentCovered?: boolean | null;
+  maintenanceConcern?: boolean | null;
+  inspectionRecommended?: boolean | null;
+  denialCategory?: string | null;
 };
 
 type Claim = {
@@ -23,7 +31,11 @@ type Claim = {
   createdAt: string;
   claimantInformation: { name: string };
   vehicleInfo: { year: number; make: string; model: string; vin: string };
-  policyInformation: { policyNumber: string };
+  policyInformation: {
+    policyNumber: string;
+    contractType?: ContractTypeOrUnknown;
+    contractVariant?: 'standard' | 'manufacturer_extension';
+  };
   claimDetails: { amount: number; documents?: string[] };
   underwriting?: { reason?: string; decision?: string };
   aiAnalysis?: AiAnalysis;
@@ -137,7 +149,20 @@ export function ClaimsDashboard() {
               <dl className="claim-details">
                 <div>
                   <dt>Policy</dt>
-                  <dd>{claim.policyInformation.policyNumber}</dd>
+                  <dd>
+                    {claim.policyInformation.policyNumber}
+                    {claim.policyInformation.contractType &&
+                      claim.policyInformation.contractType !== 'unknown' && (
+                        <span
+                          className={`contract-type-badge contract-type-${claim.policyInformation.contractType}`}
+                        >
+                          {getContractDisplayName(
+                            claim.policyInformation.contractType,
+                            claim.policyInformation.contractVariant
+                          )}
+                        </span>
+                      )}
+                  </dd>
                 </div>
                 <div>
                   <dt>Amount</dt>

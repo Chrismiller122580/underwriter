@@ -1,7 +1,12 @@
 import { z } from 'zod';
+import { CONTRACT_TYPES } from '@/lib/contracts/types';
 
 const claimFormSchema = z.object({
   policyNumber: z.string().min(1),
+  contractType: z.enum([...CONTRACT_TYPES, 'unknown']).default('unknown'),
+  contractVariant: z
+    .enum(['standard', 'manufacturer_extension'])
+    .default('standard'),
   coverageDetails: z.string().min(1),
   policyEffectiveDate: z.coerce.date(),
   policyExpirationDate: z.coerce.date(),
@@ -27,7 +32,6 @@ export const FILE_FIELDS = [
   'proofOfOwnership',
   'maintenanceRecords',
   'priorClaimsHistory',
-  'policy',
   'inspectionReports',
   'serviceHistory',
 ] as const;
@@ -45,7 +49,6 @@ export const FILE_FIELD_LABELS: Record<(typeof FILE_FIELDS)[number], string> = {
   proofOfOwnership: 'Proof of Ownership',
   maintenanceRecords: 'Maintenance Records',
   priorClaimsHistory: 'Prior Claims History',
-  policy: 'Policy Document',
   inspectionReports: 'Inspection Reports',
   serviceHistory: 'Service History',
 };
@@ -86,6 +89,9 @@ export function buildClaimDocument(
   return {
     policyInformation: {
       policyNumber: parsed.policyNumber,
+      contractType: parsed.contractType,
+      contractVariant: parsed.contractVariant,
+      contractTypeSource: 'policy_number' as const,
       coverageDetails: parsed.coverageDetails,
       policyEffectiveDate: parsed.policyEffectiveDate,
       policyExpirationDate: parsed.policyExpirationDate,

@@ -582,3 +582,77 @@ a {
   border-radius: 999px;
   text-transform: uppercase;
 }
+
+/* Policy lookup */
+.policy-lookup {
+  background: linear-gradient(135deg, #f5f0ff 0%, #fafbfd 100%);
+  border: 1px dashed #6b4fbf;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.policy-lookup-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.contract-detected-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px 14px;
+  background: #e8f0fe;
+  border: 1px solid #4a3fbf;
+  border-radius: 8px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.contract-variant-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: #fff3cd;
+  color: #856404;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.contract-type-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #e8f0fe;
+  color: #2b4acb;
+  margin-left: 8px;
+}
+
+.contract-type-classic { background: #e6f4ec; color: #1b7f4e; }
+.contract-type-vital { background: #e0f2fe; color: #0369a1; }
+.contract-type-drive { background: #fef3c7; color: #b45309; }
+.contract-type-complete { background: #ede9fe; color: #6d28d9; }
+
+.ai-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.ai-check-item {
+  font-size: 12px;
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.ai-denial-category {
+  font-size: 12px;
+  color: #b45309;
+  font-weight: 600;
+}

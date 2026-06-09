@@ -7,8 +7,8 @@ export default function SubmitPage() {
         <p className="badge">Submit Claim</p>
         <h1 style={{ marginTop: 12 }}>Claim Information Form</h1>
         <p className="page-intro">
-          Upload screenshots from your portal to autofill most fields with AI, then
-          review, attach supporting documents, and submit.
+          Enter your policy number to identify the contract type, use screenshot
+          autofill for remaining fields, attach supporting documents, and submit.
         </p>
         <ClaimForm />
       </div>

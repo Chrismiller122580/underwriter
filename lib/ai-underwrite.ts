@@ -1,9 +1,11 @@
 import { generateObject } from 'ai';
 import { getTextModelId, getXaiProvider } from '@/lib/ai-client';
+import { buildContractContext } from '@/lib/contracts/registry';
 import type { ClaimRecord } from '@/lib/claims-store';
 import { heuristicAnalysis } from '@/lib/ai-heuristic';
 import { aiAnalysisSchema, type AiAnalysis } from '@/lib/ai-types';
 import { logger } from '@/lib/logger';
+import { buildUnderwritingSystemPrompt } from '@/lib/underwriting-guidelines';
 
 function buildClaimContext(claim: ClaimRecord): string {
   return JSON.stringify(
@@ -35,17 +37,19 @@ export async function analyzeClaimWithAi(claim: ClaimRecord): Promise<AiAnalysis
   const model = getTextModelId();
 
   try {
+    const contractType = claim.policyInformation.contractType ?? 'unknown';
+    const contractVariant = claim.policyInformation.contractVariant ?? 'standard';
+
     const { object } = await generateObject({
       model: xai(model),
       schema: aiAnalysisSchema,
-      system: `You are an expert vehicle warranty claims underwriter AI for FWCUT.
-Analyze claims for validity, consistency, and fraud risk.
-Be thorough but fair. Flag inconsistencies between policy dates, incident details, repair costs, and vehicle info.
-Recommend "deny" only for clear policy violations or strong fraud signals.
-Recommend "review" for ambiguous or elevated-risk claims.
-Recommend "approve" for straightforward valid claims.`,
-      prompt: `Analyze this warranty claim and provide structured underwriting intelligence:
+      system: buildUnderwritingSystemPrompt(contractType, contractVariant),
+      prompt: `Analyze this warranty claim per Freedom Warranty underwriting guidelines.
 
+Contract context:
+${buildContractContext(contractType, contractVariant)}
+
+Claim data:
 ${buildClaimContext(claim)}`,
     });
 

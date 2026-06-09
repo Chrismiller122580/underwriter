@@ -3,6 +3,7 @@
 import { upload } from '@vercel/blob/client';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
+import type { ContractType } from '@/lib/contracts/types';
 import {
   EXTRACTABLE_FIELDS,
   type ExtractableField,
@@ -13,6 +14,7 @@ import {
   MAX_FILE_SIZE_BYTES,
 } from '@/lib/parse-claim-form';
 import { FileInput } from './FileInput';
+import { PolicyLookup } from './PolicyLookup';
 import { ScreenshotAutofill } from './ScreenshotAutofill';
 
 const USE_BLOB_UPLOAD = process.env.NEXT_PUBLIC_USE_BLOB_UPLOAD === 'true';
@@ -24,9 +26,18 @@ const EMPTY_VALUES = Object.fromEntries(
   EXTRACTABLE_FIELDS.map((f) => [f, ''])
 ) as FormValues;
 
+const VEHICLE_FIELDS: ExtractableField[] = [
+  'vin',
+  'make',
+  'model',
+  'year',
+  'odometerReading',
+];
+
 function validateForm(
   values: FormValues,
-  files: Record<string, File | null>
+  files: Record<string, File | null>,
+  contractType: ContractType | 'unknown'
 ): FieldErrors {
   const errors: FieldErrors = {};
 
@@ -34,6 +45,10 @@ function validateForm(
     if (!values[field]?.trim()) {
       errors[field] = 'This field is required.';
     }
+  }
+
+  if (contractType === 'unknown') {
+    errors.policyNumber = 'Look up or select a valid contract type.';
   }
 
   if (
@@ -70,12 +85,16 @@ function validateForm(
 
 function buildFormData(
   values: FormValues,
-  files: Record<string, File | null>
+  files: Record<string, File | null>,
+  contractType: ContractType | 'unknown',
+  contractVariant: 'standard' | 'manufacturer_extension'
 ): FormData {
   const formData = new FormData();
   for (const field of EXTRACTABLE_FIELDS) {
     formData.append(field, values[field]);
   }
+  formData.append('contractType', contractType);
+  formData.append('contractVariant', contractVariant);
   for (const field of FILE_FIELDS) {
     const file = files[field];
     if (file) formData.append(field, file);
@@ -86,6 +105,8 @@ function buildFormData(
 async function submitWithBlobUpload(
   values: FormValues,
   files: Record<string, File | null>,
+  contractType: ContractType | 'unknown',
+  contractVariant: 'standard' | 'manufacturer_extension',
   onProgress: (percent: number) => void
 ): Promise<{ ok: boolean; status: number; body: unknown }> {
   const documents: Record<string, string> = {};
@@ -108,7 +129,12 @@ async function submitWithBlobUpload(
   const response = await fetch('/api/claims', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...values, documents }),
+    body: JSON.stringify({
+      ...values,
+      contractType,
+      contractVariant,
+      documents,
+    }),
   });
 
   onProgress(100);
@@ -148,6 +174,10 @@ function submitWithProgress(
 export function ClaimForm() {
   const router = useRouter();
   const [values, setValues] = useState<FormValues>(EMPTY_VALUES);
+  const [contractType, setContractType] = useState<ContractType | 'unknown'>('unknown');
+  const [contractVariant, setContractVariant] = useState<
+    'standard' | 'manufacturer_extension'
+  >('standard');
   const [autofilled, setAutofilled] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -185,11 +215,58 @@ export function ClaimForm() {
     setErrors({});
   }
 
+  function handleLookupResult(result: {
+    valid: boolean;
+    contractType: ContractType | 'unknown';
+    variant: 'standard' | 'manufacturer_extension';
+    coverageDetails?: string;
+    vehicle?: {
+      vin?: string;
+      make?: string;
+      model?: string;
+      year?: number;
+      odometerReading?: number;
+    };
+  }) {
+    if (result.valid && result.contractType !== 'unknown') {
+      setContractVariant(result.variant);
+    }
+
+    setValues((prev) => {
+      const next = { ...prev };
+      if (result.coverageDetails) {
+        next.coverageDetails = result.coverageDetails;
+      }
+      if (result.vehicle) {
+        if (result.vehicle.vin) next.vin = result.vehicle.vin;
+        if (result.vehicle.make) next.make = result.vehicle.make;
+        if (result.vehicle.model) next.model = result.vehicle.model;
+        if (result.vehicle.year) next.year = String(result.vehicle.year);
+        if (result.vehicle.odometerReading != null) {
+          next.odometerReading = String(result.vehicle.odometerReading);
+        }
+      }
+      return next;
+    });
+
+    const filled = new Set<string>();
+    if (result.coverageDetails) filled.add('coverageDetails');
+    for (const field of VEHICLE_FIELDS) {
+      if (result.vehicle) {
+        const key = field as keyof typeof result.vehicle;
+        if (result.vehicle[key] != null) filled.add(field);
+      }
+    }
+    if (filled.size > 0) {
+      setAutofilled((prev) => new Set([...Array.from(prev), ...Array.from(filled)]));
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage(null);
 
-    const validationErrors = validateForm(values, files);
+    const validationErrors = validateForm(values, files, contractType);
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -203,8 +280,17 @@ export function ClaimForm() {
 
     try {
       const result = USE_BLOB_UPLOAD
-        ? await submitWithBlobUpload(values, files, setProgress)
-        : await submitWithProgress(buildFormData(values, files), setProgress);
+        ? await submitWithBlobUpload(
+            values,
+            files,
+            contractType,
+            contractVariant,
+            setProgress
+          )
+        : await submitWithProgress(
+            buildFormData(values, files, contractType, contractVariant),
+            setProgress
+          );
 
       if (!result.ok) {
         const body = result.body as { error?: string };
@@ -212,7 +298,10 @@ export function ClaimForm() {
       }
 
       setProgress(100);
-      setMessage({ type: 'success', text: 'Claim submitted successfully. Redirecting…' });
+      setMessage({
+        type: 'success',
+        text: 'Claim submitted successfully. AI underwriting will run before approval.',
+      });
       setTimeout(() => router.push('/claims'), 1200);
     } catch (err) {
       setMessage({
@@ -226,19 +315,25 @@ export function ClaimForm() {
 
   return (
     <form className="claim-form" onSubmit={handleSubmit} noValidate>
-      <ScreenshotAutofill
-        onExtracted={handleAutofill}
+      <PolicyLookup
+        policyNumber={values.policyNumber}
+        contractType={contractType}
+        onPolicyNumberChange={(v) => updateField('policyNumber', v)}
+        onContractTypeChange={setContractType}
+        onLookupResult={handleLookupResult}
         disabled={submitting}
       />
+
+      <ScreenshotAutofill onExtracted={handleAutofill} disabled={submitting} />
 
       <section className="form-section">
         <h2>Policy Information</h2>
         <div className="form-grid">
-          <FormField label="Policy Number" name="policyNumber" value={values.policyNumber} onChange={updateField} error={errors.policyNumber} autofilled={autofilled.has('policyNumber')} />
           <FormField label="Coverage Details" name="coverageDetails" value={values.coverageDetails} onChange={updateField} error={errors.coverageDetails} autofilled={autofilled.has('coverageDetails')} />
           <FormField label="Policy Effective Date" name="policyEffectiveDate" type="date" value={values.policyEffectiveDate} onChange={updateField} error={errors.policyEffectiveDate} autofilled={autofilled.has('policyEffectiveDate')} />
           <FormField label="Policy Expiration Date" name="policyExpirationDate" type="date" value={values.policyExpirationDate} onChange={updateField} error={errors.policyExpirationDate} autofilled={autofilled.has('policyExpirationDate')} />
         </div>
+        {errors.policyNumber && <p className="form-error">{errors.policyNumber}</p>}
       </section>
 
       <section className="form-section">
@@ -277,7 +372,10 @@ export function ClaimForm() {
 
       <section className="form-section">
         <h2>Supporting Documentation</h2>
-        <p className="form-hint">Each file must be 10 MB or smaller. These are not extracted from the screenshot — attach separately.</p>
+        <p className="form-hint">
+          Each file must be 10 MB or smaller. Policy document not required — contract
+          type is identified from the policy number.
+        </p>
         <div className="form-grid">
           {FILE_FIELDS.map((field) => (
             <FileInput

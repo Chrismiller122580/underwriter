@@ -7,7 +7,8 @@ export async function middleware(request: NextRequest) {
 
   if (
     (pathname === '/api/claims' && request.method === 'POST') ||
-    pathname === '/api/claims/extract'
+    pathname === '/api/claims/extract' ||
+    pathname === '/api/claims/lookup-policy'
   ) {
     return NextResponse.next();
   }

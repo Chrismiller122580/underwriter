@@ -15,6 +15,8 @@ Vehicle warranty claims intake, document upload, and automated policy underwriti
 | **Rate limiting** | 10 claim submissions per hour per IP |
 | **Structured logging** | JSON logs (visible in Vercel Runtime Logs) |
 | **Screenshot autofill** | Upload a portal screenshot — AI extracts and fills the claim form |
+| **Policy lookup** | Contract type resolved from policy number prefix (FWCL, FWVL, FWDR, FWCP, FWCPM) |
+| **Contract-aware underwriting** | Rule engine + Grok AI use plan-specific waiting periods, coverage model, and limits |
 | **AI underwriting** | Grok risk scoring, fraud detection, smart recommendations |
 | **Auto analysis** | Background AI scan on every new claim submission |
 
@@ -75,6 +77,7 @@ npm run dev
 | Route | Auth | Description |
 |-------|------|-------------|
 | `POST /api/claims` | Public (rate limited) | Submit claim |
+| `POST /api/claims/lookup-policy` | Public (rate limited) | Resolve contract type from policy number |
 | `POST /api/claims/extract` | Public (rate limited) | Extract form data from portal screenshot |
 | `GET /api/claims` | Adjuster | List claims |
 | `POST /api/claims/:id/underwrite` | Adjuster | AI + rule-based underwriting |
@@ -91,7 +94,8 @@ npm run dev
 ```
 app/              Pages + API routes
 components/       ClaimForm, ClaimsDashboard, LoginForm, Nav
-lib/              auth, claims-store, logger, rate-limit, underwrite
+lib/              auth, claims-store, contract-rules, policy-lookup, underwrite
+contracts/        Freedom Warranty plan registration HTML (reference)
 middleware.ts     Protects /claims and adjuster API routes
 ```
 

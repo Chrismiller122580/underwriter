@@ -7,6 +7,12 @@ type AiAnalysis = {
   fraudIndicators: string[];
   confidence: number;
   model: string;
+  contractValid?: boolean | null;
+  waitingPeriodMet?: boolean | null;
+  componentCovered?: boolean | null;
+  maintenanceConcern?: boolean | null;
+  inspectionRecommended?: boolean | null;
+  denialCategory?: string | null;
 };
 
 function riskClass(score: number) {
@@ -15,7 +21,20 @@ function riskClass(score: number) {
   return 'risk-low';
 }
 
+function formatCheck(value: boolean | null | undefined, label: string) {
+  if (value === null || value === undefined) return null;
+  return `${label}: ${value ? 'Yes' : 'No'}`;
+}
+
 export function AiInsights({ analysis }: { analysis: AiAnalysis }) {
+  const checks = [
+    formatCheck(analysis.contractValid, 'Contract valid'),
+    formatCheck(analysis.waitingPeriodMet, 'Waiting period met'),
+    formatCheck(analysis.componentCovered, 'Component covered'),
+    formatCheck(analysis.maintenanceConcern, 'Maintenance concern'),
+    formatCheck(analysis.inspectionRecommended, 'Inspection recommended'),
+  ].filter(Boolean);
+
   return (
     <div className="ai-insights">
       <div className="ai-header">
@@ -32,7 +51,23 @@ export function AiInsights({ analysis }: { analysis: AiAnalysis }) {
       <p className="ai-recommendation">
         Recommendation:{' '}
         <strong>{analysis.recommendation.toUpperCase()}</strong>
+        {analysis.denialCategory && (
+          <span className="ai-denial-category">
+            {' '}
+            ({analysis.denialCategory.replace('_', ' ')})
+          </span>
+        )}
       </p>
+
+      {checks.length > 0 && (
+        <div className="ai-checks">
+          {checks.map((check) => (
+            <span key={check} className="ai-check-item">
+              {check}
+            </span>
+          ))}
+        </div>
+      )}
 
       {analysis.flags.length > 0 && (
         <div className="ai-flags">
