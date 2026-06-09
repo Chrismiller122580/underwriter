@@ -54,45 +54,56 @@ export function ClaimCard({
   const contractBrief = getContractBrief(claim.policyInformation.contractType);
   const rulePreview = getContractRulePreview(claim);
   const readiness = getUnderwritingReadiness(claim);
+  const needsAction = claimNeedsAction(claim);
 
   return (
     <article
       className={`claim-card claim-workbench-card${
-        claimNeedsAction(claim) ? ' claim-needs-action' : ''
+        needsAction ? ' claim-needs-action' : ''
       }`}
     >
-      <div className="claim-card-header">
-        <div className="claim-card-title-block">
+      <div className="claim-card-top">
+        <div className="claim-card-identity">
           <div className="claim-card-title-row">
             <h3>{claim.claimantInformation.name}</h3>
-            {claimNeedsAction(claim) && (
+            {needsAction && (
               <span className="claim-priority-badge">Priority {priority}</span>
             )}
           </div>
           <p className="claim-meta">
             {claim.vehicleInfo.year} {claim.vehicleInfo.make}{' '}
             {claim.vehicleInfo.model} · {claim.vehicleInfo.odometerReading.toLocaleString()}{' '}
-            mi · VIN {claim.vehicleInfo.vin}
+            mi
           </p>
+          <p className="claim-meta claim-meta-sub">VIN {claim.vehicleInfo.vin}</p>
         </div>
-        <div className="claim-badges">
-          {claim.aiAnalysis && (
-            <span
-              className={`risk-score ${riskBadge(claim.aiAnalysis.riskScore)}`}
-            >
-              Risk {claim.aiAnalysis.riskScore}/10
+
+        <div className="claim-card-metrics">
+          <div className="claim-amount-block">
+            <span className="claim-amount-label">Claim amount</span>
+            <span className="claim-amount-value">
+              ${claim.claimDetails.amount.toLocaleString()}
             </span>
-          )}
-          {claim.aiAnalysis?.recommendation && (
-            <span
-              className={`ai-rec-pill ${recommendationClass(claim.aiAnalysis.recommendation)}`}
-            >
-              AI: {claim.aiAnalysis.recommendation}
+          </div>
+          <div className="claim-badges">
+            {claim.aiAnalysis && (
+              <span
+                className={`risk-score ${riskBadge(claim.aiAnalysis.riskScore)}`}
+              >
+                Risk {claim.aiAnalysis.riskScore}/10
+              </span>
+            )}
+            {claim.aiAnalysis?.recommendation && (
+              <span
+                className={`ai-rec-pill ${recommendationClass(claim.aiAnalysis.recommendation)}`}
+              >
+                AI: {claim.aiAnalysis.recommendation}
+              </span>
+            )}
+            <span className={statusClass(claim.status)}>
+              {claim.status.replace('_', ' ')}
             </span>
-          )}
-          <span className={statusClass(claim.status)}>
-            {claim.status.replace('_', ' ')}
-          </span>
+          </div>
         </div>
       </div>
 
@@ -120,41 +131,44 @@ export function ClaimCard({
         {!claim.aiAnalysis && (
           <span className="claim-signal claim-signal-pending-ai">No AI scan</span>
         )}
+        <span className={`claim-signal claim-signal-rule rule-${rulePreview.decision}`}>
+          Rules: {rulePreview.decision}
+        </span>
       </div>
 
-      <dl className="claim-details claim-details-compact">
-        <div>
-          <dt>Policy</dt>
-          <dd>
-            {claim.policyInformation.policyNumber}
-            {claim.policyInformation.contractType &&
-              claim.policyInformation.contractType !== 'unknown' && (
-                <span
-                  className={`contract-type-badge contract-type-${claim.policyInformation.contractType}`}
-                >
-                  {getContractDisplayName(
-                    claim.policyInformation.contractType,
-                    claim.policyInformation.contractVariant
-                  )}
-                </span>
-              )}
-          </dd>
+      <div className="claim-fact-strip">
+        <div className="claim-fact">
+          <span className="claim-fact-label">Policy</span>
+          <span className="claim-fact-value">{claim.policyInformation.policyNumber}</span>
+          {claim.policyInformation.contractType &&
+            claim.policyInformation.contractType !== 'unknown' && (
+              <span
+                className={`contract-type-badge contract-type-${claim.policyInformation.contractType}`}
+              >
+                {getContractDisplayName(
+                  claim.policyInformation.contractType,
+                  claim.policyInformation.contractVariant
+                )}
+              </span>
+            )}
         </div>
-        <div>
-          <dt>Amount</dt>
-          <dd>${claim.claimDetails.amount.toLocaleString()}</dd>
+        <div className="claim-fact">
+          <span className="claim-fact-label">Loss date</span>
+          <span className="claim-fact-value">
+            {formatDate(claim.incidentDetails.dateOfLoss)}
+          </span>
         </div>
-        <div>
-          <dt>Loss date</dt>
-          <dd>{formatDate(claim.incidentDetails.dateOfLoss)}</dd>
-        </div>
-        <div>
-          <dt>Documents</dt>
-          <dd>
+        <div className="claim-fact">
+          <span className="claim-fact-label">Documents</span>
+          <span className="claim-fact-value">
             {attachedDocs.length} attached · {missingDocs.length} missing
-          </dd>
+          </span>
         </div>
-      </dl>
+        <div className="claim-fact">
+          <span className="claim-fact-label">Submitted</span>
+          <span className="claim-fact-value">{formatDate(claim.createdAt)}</span>
+        </div>
+      </div>
 
       <p className="claim-repair-snippet">
         <strong>Repair:</strong> {claim.repairInformation.detailedRepairDescription}
@@ -267,13 +281,13 @@ export function ClaimCard({
       <div className="claim-card-actions">
         <button
           type="button"
-          className="link-button"
+          className="link-button claim-expand-toggle"
           onClick={() => setExpanded((value) => !value)}
         >
-          {expanded ? 'Hide details' : 'Show full claim context'}
+          {expanded ? 'Hide full context' : 'Show full claim context'}
         </button>
 
-        <div className="action-row">
+        <div className="claim-action-group">
           <AnalyzeButton
             claimId={claim._id}
             onComplete={onRefresh}

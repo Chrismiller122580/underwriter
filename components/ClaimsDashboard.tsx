@@ -13,6 +13,15 @@ import {
 } from '@/lib/claim-portal';
 import { ClaimCard } from './ClaimCard';
 
+const QUEUE_FILTERS: { id: ClaimFilter; label: string; tone?: 'pending' | 'denied' }[] = [
+  { id: 'action_needed', label: 'Action needed', tone: 'pending' },
+  { id: 'needs_info', label: 'Needs info', tone: 'pending' },
+  { id: 'guideline_flags', label: 'Guideline flags', tone: 'pending' },
+  { id: 'high_risk', label: 'High risk', tone: 'denied' },
+  { id: 'no_ai', label: 'No AI scan' },
+  { id: 'under_review', label: 'Under review' },
+];
+
 export function ClaimsDashboard() {
   const [claims, setClaims] = useState<PortalClaim[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,182 +91,241 @@ export function ClaimsDashboard() {
     return sortClaims(filtered, sortBy);
   }, [claims, statusFilter, contractFilter, sortBy, search]);
 
+  const hasActiveFilters =
+    statusFilter !== 'all' || contractFilter !== 'all' || search.trim().length > 0;
+
+  function clearFilters() {
+    setStatusFilter('all');
+    setContractFilter('all');
+    setSearch('');
+  }
+
   if (loading) {
-    return <p className="loading">Loading underwriting workbench…</p>;
+    return (
+      <div className="adjuster-loading">
+        <p className="loading">Loading underwriting workbench…</p>
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div className="form-error">
-        {error}{' '}
-        <button type="button" className="link-button" onClick={loadClaims}>
-          Retry
-        </button>
+      <div className="adjuster-loading">
+        <div className="form-error">
+          {error}{' '}
+          <button type="button" className="link-button" onClick={loadClaims}>
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="adjuster-portal">
-      <p className="portal-queue-insight">{queueInsight}</p>
-
-      <section className="portal-stats-grid">
-        <StatCard
-          label="Action queue"
-          value={stats.actionQueue}
-          tone="pending"
-          active={statusFilter === 'action_needed'}
-          onClick={() => setStatusFilter('action_needed')}
-        />
-        <StatCard
-          label="Needs info"
-          value={stats.needsInfo}
-          tone="pending"
-          active={statusFilter === 'needs_info'}
-          onClick={() => setStatusFilter('needs_info')}
-        />
-        <StatCard
-          label="Guideline flags"
-          value={stats.guidelineFlags}
-          tone="pending"
-          active={statusFilter === 'guideline_flags'}
-          onClick={() => setStatusFilter('guideline_flags')}
-        />
-        <StatCard
-          label="High risk"
-          value={stats.highRisk}
-          tone="denied"
-          active={statusFilter === 'high_risk'}
-          onClick={() => setStatusFilter('high_risk')}
-        />
-        <StatCard
-          label="No AI scan"
-          value={stats.noAi}
-          active={statusFilter === 'no_ai'}
-          onClick={() => setStatusFilter('no_ai')}
-        />
-        <StatCard
-          label="Under review"
-          value={stats.underReview}
-          active={statusFilter === 'under_review'}
-          onClick={() => setStatusFilter('under_review')}
-        />
-        <StatCard label="Approved" value={stats.approved} tone="approved" />
-        <StatCard label="Denied" value={stats.denied} tone="denied" />
-      </section>
-
-      <section className="portal-toolbar">
-        <div className="portal-filter-group">
-          <label className="portal-filter-label" htmlFor="claim-search">
-            Search
-          </label>
-          <input
-            id="claim-search"
-            className="portal-search"
-            placeholder="Name, policy, VIN, repair…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        <div className="portal-filter-group">
-          <label className="portal-filter-label" htmlFor="status-filter">
-            Queue
-          </label>
-          <select
-            id="status-filter"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as ClaimFilter)}
-          >
-            <option value="action_needed">Action needed</option>
-            <option value="all">All claims</option>
-            <option value="needs_info">Needs information</option>
-            <option value="guideline_flags">Guideline flags</option>
-            <option value="high_risk">High risk (7+)</option>
-            <option value="under_review">Under review</option>
-            <option value="no_ai">No AI scan</option>
-          </select>
-        </div>
-
-        <div className="portal-filter-group">
-          <label className="portal-filter-label" htmlFor="contract-filter">
-            Contract
-          </label>
-          <select
-            id="contract-filter"
-            value={contractFilter}
-            onChange={(e) => setContractFilter(e.target.value as ContractFilter)}
-          >
-            <option value="all">All types</option>
-            {CONTRACT_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
+    <div className="adjuster-layout">
+      <aside className="adjuster-sidebar">
+        <section className="adjuster-sidebar-section">
+          <h2 className="adjuster-sidebar-title">Queue focus</h2>
+          <div className="adjuster-sidebar-stats">
+            {QUEUE_FILTERS.map((filter) => (
+              <StatCard
+                key={filter.id}
+                label={filter.label}
+                value={statValueForFilter(filter.id, stats)}
+                tone={filter.tone}
+                active={statusFilter === filter.id}
+                onClick={() => setStatusFilter(filter.id)}
+              />
             ))}
-            <option value="unknown">unknown</option>
-          </select>
-        </div>
+          </div>
+        </section>
 
-        <div className="portal-filter-group">
-          <label className="portal-filter-label" htmlFor="sort-by">
-            Sort
-          </label>
-          <select
-            id="sort-by"
-            value={sortBy}
-            onChange={(e) =>
-              setSortBy(e.target.value as 'priority' | 'newest' | 'risk' | 'amount')
-            }
-          >
-            <option value="priority">Priority</option>
-            <option value="risk">Highest risk</option>
-            <option value="newest">Newest</option>
-            <option value="amount">Highest amount</option>
-          </select>
-        </div>
+        <section className="adjuster-sidebar-section">
+          <h2 className="adjuster-sidebar-title">Outcomes</h2>
+          <div className="adjuster-sidebar-stats adjuster-sidebar-stats-compact">
+            <StatCard label="Total" value={stats.total} />
+            <StatCard label="Approved" value={stats.approved} tone="approved" />
+            <StatCard label="Denied" value={stats.denied} tone="denied" />
+          </div>
+        </section>
 
-        <button type="button" className="button button-secondary button-sm" onClick={loadClaims}>
-          Refresh
-        </button>
-      </section>
+        <section className="adjuster-sidebar-tip">
+          <h2 className="adjuster-sidebar-title">Workflow</h2>
+          <ol>
+            <li>Run <strong>AI Scan</strong> on unscanned claims</li>
+            <li>Review contract rules, docs, and AI flags</li>
+            <li>Request missing info if needed</li>
+            <li>Run <strong>AI Underwrite</strong> for final decision</li>
+          </ol>
+        </section>
+      </aside>
 
-      <p className="portal-results-meta">
-        Showing <strong>{visibleClaims.length}</strong> of {claims.length} claims
-      </p>
+      <div className="adjuster-main">
+        <div className="portal-queue-insight">{queueInsight}</div>
 
-      {claims.length === 0 ? (
-        <p className="empty-state">
-          No claims yet. <Link href="/submit">Submit the first claim</Link>.
-        </p>
-      ) : visibleClaims.length === 0 ? (
-        <p className="empty-state">
-          No claims match this filter.{' '}
+        <section className="portal-toolbar">
+          <div className="portal-filter-group portal-filter-search">
+            <label className="portal-filter-label" htmlFor="claim-search">
+              Search claims
+            </label>
+            <input
+              id="claim-search"
+              className="portal-search"
+              placeholder="Name, policy, VIN, repair…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          <div className="portal-filter-group">
+            <label className="portal-filter-label" htmlFor="status-filter">
+              Queue
+            </label>
+            <select
+              id="status-filter"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as ClaimFilter)}
+            >
+              <option value="action_needed">Action needed</option>
+              <option value="all">All claims</option>
+              <option value="needs_info">Needs information</option>
+              <option value="guideline_flags">Guideline flags</option>
+              <option value="high_risk">High risk (7+)</option>
+              <option value="under_review">Under review</option>
+              <option value="no_ai">No AI scan</option>
+            </select>
+          </div>
+
+          <div className="portal-filter-group">
+            <label className="portal-filter-label" htmlFor="contract-filter">
+              Contract
+            </label>
+            <select
+              id="contract-filter"
+              value={contractFilter}
+              onChange={(e) => setContractFilter(e.target.value as ContractFilter)}
+            >
+              <option value="all">All types</option>
+              {CONTRACT_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+              <option value="unknown">unknown</option>
+            </select>
+          </div>
+
+          <div className="portal-filter-group">
+            <label className="portal-filter-label" htmlFor="sort-by">
+              Sort
+            </label>
+            <select
+              id="sort-by"
+              value={sortBy}
+              onChange={(e) =>
+                setSortBy(e.target.value as 'priority' | 'newest' | 'risk' | 'amount')
+              }
+            >
+              <option value="priority">Priority</option>
+              <option value="risk">Highest risk</option>
+              <option value="newest">Newest</option>
+              <option value="amount">Highest amount</option>
+            </select>
+          </div>
+
           <button
             type="button"
-            className="link-button"
-            onClick={() => {
-              setStatusFilter('all');
-              setContractFilter('all');
-              setSearch('');
-            }}
+            className="button button-secondary button-sm portal-refresh"
+            onClick={loadClaims}
           >
-            Clear filters
+            Refresh
           </button>
-        </p>
-      ) : (
-        <div className="claims-list">
-          {visibleClaims.map((claim, index) => (
-            <ClaimCard
-              key={claim._id}
-              claim={claim}
-              onRefresh={loadClaims}
-              defaultExpanded={index === 0 && statusFilter === 'action_needed'}
-            />
-          ))}
+        </section>
+
+        {hasActiveFilters && (
+          <div className="portal-active-filters">
+            {statusFilter !== 'all' && (
+              <FilterChip
+                label={QUEUE_FILTERS.find((f) => f.id === statusFilter)?.label ?? statusFilter}
+                onRemove={() => setStatusFilter('all')}
+              />
+            )}
+            {contractFilter !== 'all' && (
+              <FilterChip
+                label={`Contract: ${contractFilter}`}
+                onRemove={() => setContractFilter('all')}
+              />
+            )}
+            {search.trim() && (
+              <FilterChip label={`Search: ${search}`} onRemove={() => setSearch('')} />
+            )}
+            <button type="button" className="link-button" onClick={clearFilters}>
+              Clear all
+            </button>
+          </div>
+        )}
+
+        <div className="portal-results-bar">
+          <p className="portal-results-meta">
+            Showing <strong>{visibleClaims.length}</strong> of {claims.length} claims
+          </p>
+          <button
+            type="button"
+            className={`portal-view-all${statusFilter === 'all' ? ' active' : ''}`}
+            onClick={() => setStatusFilter('all')}
+          >
+            View all
+          </button>
         </div>
-      )}
+
+        {claims.length === 0 ? (
+          <p className="empty-state">
+            No claims yet. <Link href="/submit">Submit the first claim</Link>.
+          </p>
+        ) : visibleClaims.length === 0 ? (
+          <p className="empty-state">
+            No claims match this filter.{' '}
+            <button type="button" className="link-button" onClick={clearFilters}>
+              Clear filters
+            </button>
+          </p>
+        ) : (
+          <div className="claims-list adjuster-claims-list">
+            {visibleClaims.map((claim, index) => (
+              <ClaimCard
+                key={claim._id}
+                claim={claim}
+                onRefresh={loadClaims}
+                defaultExpanded={index === 0 && statusFilter === 'action_needed'}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
+}
+
+function statValueForFilter(
+  filter: ClaimFilter,
+  stats: ReturnType<typeof portalStats>
+): number {
+  switch (filter) {
+    case 'action_needed':
+      return stats.actionQueue;
+    case 'needs_info':
+      return stats.needsInfo;
+    case 'guideline_flags':
+      return stats.guidelineFlags;
+    case 'high_risk':
+      return stats.highRisk;
+    case 'no_ai':
+      return stats.noAi;
+    case 'under_review':
+      return stats.underReview;
+    default:
+      return stats.total;
+  }
 }
 
 function StatCard({
@@ -297,5 +365,16 @@ function StatCard({
       <span className="stat-value">{value}</span>
       <span className="stat-label">{label}</span>
     </div>
+  );
+}
+
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="portal-filter-chip">
+      {label}
+      <button type="button" className="portal-filter-chip-remove" onClick={onRemove}>
+        ×
+      </button>
+    </span>
   );
 }

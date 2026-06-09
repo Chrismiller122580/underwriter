@@ -3,25 +3,32 @@ import { ClaimsDashboard } from '@/components/ClaimsDashboard';
 
 export default function ClaimsPage() {
   return (
-    <main className="container-wide page-main">
-      <div className="card adjuster-portal-shell">
-        <div className="page-header page-header-stack">
-          <div>
-            <p className="badge">Adjuster Workbench</p>
-            <h1 className="page-title">Underwriting Command Center</h1>
-            <p className="page-intro">
-              Prioritized claim queue with contract context, documentation gaps,
-              AI risk signals, and one-click underwriting. AI analysis is required
-              before approval — use information requests to gather missing files.
+    <main className="adjuster-page">
+      <header className="adjuster-hero">
+        <div className="adjuster-hero-inner">
+          <div className="adjuster-hero-copy">
+            <p className="adjuster-eyebrow">Adjuster Workbench</p>
+            <h1 className="adjuster-title">Underwriting Command Center</h1>
+            <p className="adjuster-lead">
+              Triage claims by priority, review contract rules and AI signals,
+              then underwrite with confidence. Run an AI scan before every
+              final decision.
             </p>
           </div>
-          <Link href="/submit" className="button">
-            New Claim Intake
-          </Link>
+          <div className="adjuster-hero-actions">
+            <Link href="/submit" className="button adjuster-cta">
+              New Claim Intake
+            </Link>
+            <ol className="adjuster-workflow">
+              <li>Scan</li>
+              <li>Review</li>
+              <li>Underwrite</li>
+            </ol>
+          </div>
         </div>
+      </header>
 
-        <ClaimsDashboard />
-      </div>
+      <ClaimsDashboard />
     </main>
   );
 }
