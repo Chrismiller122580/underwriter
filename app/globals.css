@@ -1986,7 +1986,9 @@ a {
 
 .ai-check-item {
   font-size: 12px;
-  background: #f1f5f9;
+  background: var(--bg-surface-muted);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
   padding: 4px 8px;
   border-radius: 6px;
 }
@@ -2461,6 +2463,34 @@ a {
 [data-theme='dark'] .ai-insights {
   background: linear-gradient(135deg, #1a2438 0%, #151d2e 100%);
   border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .ai-confidence,
+[data-theme='dark'] .ai-recommendation {
+  color: var(--text-secondary);
+}
+
+[data-theme='dark'] .ai-check-item {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-color: var(--border-input);
+}
+
+[data-theme='dark'] .ai-info-requests {
+  color: #93c5fd;
+}
+
+[data-theme='dark'] .ai-guideline-conflicts {
+  color: #fcd34d;
+}
+
+[data-theme='dark'] .ai-fraud {
+  color: var(--error);
+}
+
+[data-theme='dark'] .ai-model {
+  color: var(--text-faint);
 }
 
 [data-theme='dark'] .screenshot-autofill,
