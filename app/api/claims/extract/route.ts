@@ -104,12 +104,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to extract data from screenshot',
-      },
+      { error: 'Failed to extract data from screenshot. Please try again.' },
       { status: 500 }
     );
   }

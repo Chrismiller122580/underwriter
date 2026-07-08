@@ -18,6 +18,7 @@ export const sandboxScenarioSchema = z.object({
   model: z.string().default('Accord'),
   year: z.coerce.number().default(2020),
   odometerReading: z.coerce.number().default(45000),
+  odometerAtEffective: z.coerce.number().default(40000),
   name: z.string().default('Sandbox Claimant'),
   contactInformation: z.string().default('sandbox@example.com'),
   relationshipToVehicle: z.string().default('Owner'),
@@ -59,6 +60,7 @@ export function buildSandboxClaim(
       year: scenario.year,
       vin: scenario.vin,
       odometerReading: scenario.odometerReading,
+      odometerAtEffective: scenario.odometerAtEffective,
     },
     claimantInformation: {
       name: scenario.name,

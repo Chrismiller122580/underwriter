@@ -6,11 +6,13 @@ import {
   updateClaimDocuments,
 } from '@/lib/claims-store';
 import { getSessionFromCookies } from '@/lib/auth';
+import { sanitizeClaimForPortal } from '@/lib/document-urls';
 import { logger } from '@/lib/logger';
 import {
   extractFilesFromFormData,
   parseClaimFormData,
   parseClaimJson,
+  validateUploadedFileSizes,
 } from '@/lib/parse-claim-form';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { scheduleAiAnalysis } from '@/lib/schedule-ai';
@@ -18,17 +20,37 @@ import { saveUploadedFiles } from '@/lib/uploads';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getSessionFromCookies();
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const claims = await listClaims();
-    logger.info('Claims listed', { role: session.role, count: claims.length });
-    return NextResponse.json(claims);
+    const { searchParams } = new URL(request.url);
+    const limit = Number(searchParams.get('limit') ?? '50');
+    const cursor = searchParams.get('cursor') ?? undefined;
+
+    const result = await listClaims({
+      limit: Number.isFinite(limit) ? limit : 50,
+      cursor,
+    });
+
+    logger.info('Claims listed', {
+      role: session.role,
+      count: result.claims.length,
+      hasMore: Boolean(result.nextCursor),
+    });
+
+    return NextResponse.json({
+      claims: result.claims.map(sanitizeClaimForPortal),
+      nextCursor: result.nextCursor,
+    });
   } catch (error) {
+    if (error instanceof Error && error.message === 'Invalid pagination cursor') {
+      return NextResponse.json({ error: 'Invalid pagination cursor' }, { status: 400 });
+    }
+
     logger.error('GET /api/claims failed', {
       error: error instanceof Error ? error.message : 'unknown',
     });
@@ -67,7 +89,7 @@ export async function POST(request: Request) {
       const { documents, ...fields } = parsed;
 
       const claim = await createClaim(fields, documents);
-      scheduleAiAnalysis(claim._id);
+      await scheduleAiAnalysis(claim._id);
       logger.info('Claim submitted via JSON', { claimId: claim._id, ip });
 
       return NextResponse.json(
@@ -83,6 +105,7 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const parsed = parseClaimFormData(formData);
     const files = extractFilesFromFormData(formData);
+    validateUploadedFileSizes(files);
 
     const claim = await createClaim(parsed, {});
 
@@ -91,7 +114,7 @@ export async function POST(request: Request) {
       await updateClaimDocuments(claim._id, savedPaths);
     }
 
-    scheduleAiAnalysis(claim._id);
+    await scheduleAiAnalysis(claim._id);
     logger.info('Claim submitted via form', { claimId: claim._id, ip });
 
     return NextResponse.json(
@@ -103,6 +126,10 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (error) {
+    if (error instanceof Error && error.message.includes('exceeds the 10 MB limit')) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
     if (error instanceof ZodError) {
       logger.warn('Claim validation failed', { ip });
       return NextResponse.json(

@@ -1,8 +1,28 @@
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { NextResponse } from 'next/server';
 import { MAX_FILE_SIZE_BYTES } from '@/lib/parse-claim-form';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: Request): Promise<NextResponse> {
+  const ip = getClientIp(request);
+  const rateLimit = await checkRateLimit(`upload:${ip}`, 30, 60 * 60 * 1000);
+
+  if (!rateLimit.allowed) {
+    logger.warn('Upload rate limit exceeded', { ip });
+    return NextResponse.json(
+      { error: 'Too many upload requests. Please try again later.' },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(
+            Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000)
+          ),
+        },
+      }
+    );
+  }
+
   const body = (await request.json()) as HandleUploadBody;
 
   try {

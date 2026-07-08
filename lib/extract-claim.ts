@@ -13,6 +13,7 @@ export const EXTRACTABLE_FIELDS = [
   'model',
   'year',
   'odometerReading',
+  'odometerAtEffective',
   'name',
   'contactInformation',
   'relationshipToVehicle',
@@ -47,6 +48,9 @@ export const extractedClaimSchema = z.object({
   year: nullableNumber('Vehicle year as a number, or null if not visible'),
   odometerReading: nullableNumber(
     'Odometer reading as a number, or null if not visible'
+  ),
+  odometerAtEffective: nullableNumber(
+    'Odometer reading at policy effective date as a number, or null if not visible'
   ),
   name: nullableString('Claimant name, or null if not visible'),
   contactInformation: nullableString(

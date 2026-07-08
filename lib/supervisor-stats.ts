@@ -1,7 +1,11 @@
 import type { ClaimRecord } from '@/lib/claims-store';
-import { listClaims } from '@/lib/claims-store';
+import {
+  getClaimPortalStats,
+  listClaims,
+} from '@/lib/claims-store';
 import { getTextModelId, getXaiApiKey } from '@/lib/ai-client';
 import { getKnowledgeStats } from '@/lib/knowledge-store';
+import { ensureSchema, getSql } from '@/lib/db';
 import type { ContractType } from '@/lib/contracts/types';
 
 export type SupervisorOverview = {
@@ -49,25 +53,63 @@ function summarizeClaim(claim: ClaimRecord) {
   };
 }
 
-export async function getSupervisorOverview(): Promise<SupervisorOverview> {
-  const [claims, knowledge] = await Promise.all([
-    listClaims(),
-    getKnowledgeStats(),
-  ]);
+async function getContractTypeBreakdown(): Promise<Record<string, number>> {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT
+      COALESCE(policy_information->>'contractType', 'unknown') AS contract_type,
+      COUNT(*)::int AS count
+    FROM claims
+    GROUP BY contract_type
+  `) as { contract_type: string; count: number }[];
 
-  const analyzed = claims.filter((claim) => claim.aiAnalysis);
-  const riskScores = analyzed
-    .map((claim) => claim.aiAnalysis?.riskScore)
-    .filter((score): score is number => typeof score === 'number');
-
-  const byContractType = claims.reduce(
-    (acc, claim) => {
-      const type = claim.policyInformation.contractType ?? 'unknown';
-      acc[type] = (acc[type] ?? 0) + 1;
+  return rows.reduce(
+    (acc, row) => {
+      acc[row.contract_type] = row.count;
       return acc;
     },
     {} as Record<string, number>
   );
+}
+
+async function getAverageRiskScore(): Promise<number | null> {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT AVG((ai_analysis->>'riskScore')::numeric) AS avg_risk
+    FROM claims
+    WHERE ai_analysis IS NOT NULL
+      AND ai_analysis->>'riskScore' IS NOT NULL
+  `) as { avg_risk: string | null }[];
+
+  const avg = rows[0]?.avg_risk;
+  if (avg == null) return null;
+  return Math.round(Number(avg) * 10) / 10;
+}
+
+async function getAnalyzedClaimCount(): Promise<number> {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT COUNT(*)::int AS count
+    FROM claims
+    WHERE ai_analysis IS NOT NULL
+  `) as { count: number }[];
+
+  return rows[0]?.count ?? 0;
+}
+
+export async function getSupervisorOverview(): Promise<SupervisorOverview> {
+  const [stats, knowledge, byContractType, avgRiskScore, withAnalysis, recentPage] =
+    await Promise.all([
+      getClaimPortalStats(),
+      getKnowledgeStats(),
+      getContractTypeBreakdown(),
+      getAverageRiskScore(),
+      getAnalyzedClaimCount(),
+      listClaims({ limit: 8 }),
+    ]);
 
   return {
     ai: {
@@ -76,29 +118,18 @@ export async function getSupervisorOverview(): Promise<SupervisorOverview> {
       visionModel: process.env.AI_VISION_MODEL ?? process.env.AI_MODEL ?? 'grok-3',
     },
     claims: {
-      total: claims.length,
-      pending: claims.filter((claim) => claim.status === 'pending').length,
-      underReview: claims.filter((claim) => claim.status === 'under_review').length,
-      approved: claims.filter((claim) => claim.status === 'approved').length,
-      denied: claims.filter((claim) => claim.status === 'denied').length,
-      withAnalysis: analyzed.length,
-      needsInfo: claims.filter(
-        (claim) => (claim.aiAnalysis?.informationRequests?.length ?? 0) > 0
-      ).length,
-      guidelineFlags: claims.filter(
-        (claim) => (claim.aiAnalysis?.guidelineConflicts?.length ?? 0) > 0
-      ).length,
-      avgRiskScore:
-        riskScores.length > 0
-          ? Math.round(
-              (riskScores.reduce((sum, score) => sum + score, 0) / riskScores.length) *
-                10
-            ) / 10
-          : null,
-      highRisk: claims.filter((claim) => (claim.aiAnalysis?.riskScore ?? 0) >= 7)
-        .length,
+      total: stats.total,
+      pending: stats.pending,
+      underReview: stats.underReview,
+      approved: stats.approved,
+      denied: stats.denied,
+      withAnalysis,
+      needsInfo: stats.needsInfo,
+      guidelineFlags: stats.guidelineFlags,
+      avgRiskScore,
+      highRisk: stats.highRisk,
       byContractType,
-      recent: claims.slice(0, 8).map(summarizeClaim),
+      recent: recentPage.claims.map(summarizeClaim),
     },
     knowledge,
   };
@@ -107,11 +138,11 @@ export async function getSupervisorOverview(): Promise<SupervisorOverview> {
 export function getContractReference() {
   return {
     prefixes: [
-      { prefix: 'FWCPM', type: 'complete', coverage: 'Exclusionary + Mfr Extension' },
-      { prefix: 'FWCP', type: 'complete', coverage: 'Exclusionary' },
-      { prefix: 'FWDR', type: 'drive', coverage: 'Stated components' },
-      { prefix: 'FWVL', type: 'vital', coverage: 'Stated components' },
-      { prefix: 'FWCL', type: 'classic', coverage: 'Stated components' },
+      { prefix: 'FWCPM', type: 'complete' as ContractType, coverage: 'Exclusionary + Mfr Extension' },
+      { prefix: 'FWCP', type: 'complete' as ContractType, coverage: 'Exclusionary' },
+      { prefix: 'FWDR', type: 'drive' as ContractType, coverage: 'Stated components' },
+      { prefix: 'FWVL', type: 'vital' as ContractType, coverage: 'Stated components' },
+      { prefix: 'FWCL', type: 'classic' as ContractType, coverage: 'Stated components' },
     ],
     waitingPeriods: [
       { types: ['classic'], days: 90, miles: 200 },

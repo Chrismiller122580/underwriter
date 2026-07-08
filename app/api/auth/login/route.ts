@@ -7,7 +7,9 @@ import {
   verifyLoginPassword,
   type UserRole,
 } from '@/lib/auth';
+import { isProductionDeploy } from '@/lib/env';
 import { logger } from '@/lib/logger';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +19,24 @@ const loginSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const ip = getClientIp(request);
+  const rateLimit = await checkRateLimit(`login:${ip}`, 10, 15 * 60 * 1000);
+
+  if (!rateLimit.allowed) {
+    logger.warn('Login rate limit exceeded', { ip });
+    return NextResponse.json(
+      { error: 'Too many login attempts. Please try again later.' },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(
+            Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000)
+          ),
+        },
+      }
+    );
+  }
+
   try {
     const body = loginSchema.parse(await request.json());
     const configured = getConfiguredRoles();
@@ -24,8 +44,9 @@ export async function POST(request: Request) {
     if (body.role === 'supervisor' && !configured.supervisor) {
       return NextResponse.json(
         {
-          error:
-            'Supervisor login is not configured. Set SUPERVISOR_PASSWORD or ADJUSTER_PASSWORD on the server.',
+          error: isProductionDeploy()
+            ? 'Supervisor login requires SUPERVISOR_PASSWORD in production.'
+            : 'Supervisor login is not configured. Set SUPERVISOR_PASSWORD or ADJUSTER_PASSWORD on the server.',
         },
         { status: 503 }
       );

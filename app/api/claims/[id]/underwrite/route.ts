@@ -4,6 +4,7 @@ import {
   getSessionFromCookies,
 } from '@/lib/auth';
 import {
+  ClaimNotUnderwritableError,
   isValidClaimId,
   underwriteClaimById,
 } from '@/lib/claims-store';
@@ -49,6 +50,16 @@ export async function POST(_request: Request, context: RouteContext) {
       aiAnalysis,
     });
   } catch (error) {
+    if (error instanceof ClaimNotUnderwritableError) {
+      return NextResponse.json(
+        {
+          error: `Claim cannot be underwritten while status is "${error.claim.status}".`,
+          status: error.claim.status,
+        },
+        { status: 409 }
+      );
+    }
+
     logger.error('Underwrite failed', {
       claimId: id,
       error: error instanceof Error ? error.message : 'unknown',

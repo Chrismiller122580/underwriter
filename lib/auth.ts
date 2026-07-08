@@ -1,6 +1,8 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import type { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { isProductionDeploy } from '@/lib/env';
 
 export const SESSION_COOKIE = 'fwcut_session';
 export type UserRole = 'adjuster' | 'supervisor';
@@ -9,6 +11,8 @@ export type Session = {
   email: string;
   role: UserRole;
 };
+
+const userRoleSchema = z.enum(['adjuster', 'supervisor']);
 
 function getSecret() {
   const secret = process.env.AUTH_SECRET;
@@ -32,9 +36,13 @@ export async function verifySessionToken(
   try {
     const { payload } = await jwtVerify(token, getSecret());
     if (!payload.email || !payload.role) return null;
+
+    const roleResult = userRoleSchema.safeParse(payload.role);
+    if (!roleResult.success) return null;
+
     return {
       email: String(payload.email),
-      role: payload.role as UserRole,
+      role: roleResult.data,
     };
   } catch {
     return null;
@@ -62,11 +70,15 @@ export function getConfiguredRoles(): {
 } {
   const adjusterPassword = process.env.ADJUSTER_PASSWORD?.trim();
   const supervisorPassword = process.env.SUPERVISOR_PASSWORD?.trim();
+  const supervisorConfigured = isProductionDeploy()
+    ? Boolean(supervisorPassword)
+    : Boolean(supervisorPassword || adjusterPassword);
 
   return {
     adjuster: Boolean(adjusterPassword),
-    supervisor: Boolean(supervisorPassword || adjusterPassword),
-    supervisorUsesAdjusterFallback: !supervisorPassword && Boolean(adjusterPassword),
+    supervisor: supervisorConfigured,
+    supervisorUsesAdjusterFallback:
+      !isProductionDeploy() && !supervisorPassword && Boolean(adjusterPassword),
   };
 }
 
@@ -79,7 +91,10 @@ export function verifyLoginPassword(
   const supervisorPassword = process.env.SUPERVISOR_PASSWORD?.trim();
 
   if (role === 'supervisor') {
-    const effectiveSupervisorPassword = supervisorPassword || adjusterPassword;
+    const effectiveSupervisorPassword = isProductionDeploy()
+      ? supervisorPassword
+      : supervisorPassword || adjusterPassword;
+
     if (effectiveSupervisorPassword && input === effectiveSupervisorPassword) {
       return { email: 'supervisor@fwcut.local', role: 'supervisor' };
     }

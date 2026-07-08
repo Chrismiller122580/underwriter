@@ -1,4 +1,5 @@
 import { LoginForm } from '@/components/LoginForm';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function LoginPage({
   searchParams,
@@ -10,6 +11,9 @@ export default function LoginPage({
 
   return (
     <main className="container page-main">
+      <div className="page-theme-toggle">
+        <ThemeToggle />
+      </div>
       <div className="card login-card">
         <p className="badge">Staff Access</p>
         <h1 className="page-title">Sign In</h1>

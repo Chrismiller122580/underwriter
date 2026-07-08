@@ -106,6 +106,13 @@ export function combineDecisions(
     };
   }
 
+  if (ruleDecision === 'pending') {
+    return {
+      decision: 'under_review',
+      reason: `Contract rules require adjuster review. AI risk score: ${ai.riskScore}/10. ${ai.reasoning}`,
+    };
+  }
+
   if (ai.recommendation === 'deny') {
     return {
       decision: 'denied',

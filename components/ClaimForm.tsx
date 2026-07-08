@@ -8,6 +8,7 @@ import {
   EXTRACTABLE_FIELDS,
   type ExtractableField,
 } from '@/lib/extract-claim';
+import { isBlobUploadEnabled } from '@/lib/env';
 import {
   FILE_FIELD_LABELS,
   FILE_FIELDS,
@@ -17,7 +18,7 @@ import { FileInput } from './FileInput';
 import { PolicyLookup } from './PolicyLookup';
 import { ScreenshotAutofill } from './ScreenshotAutofill';
 
-const USE_BLOB_UPLOAD = process.env.NEXT_PUBLIC_USE_BLOB_UPLOAD === 'true';
+const USE_BLOB_UPLOAD = isBlobUploadEnabled();
 
 type FormValues = Record<ExtractableField, string>;
 type FieldErrors = Partial<Record<ExtractableField | (typeof FILE_FIELDS)[number], string>>;
@@ -32,7 +33,12 @@ const VEHICLE_FIELDS: ExtractableField[] = [
   'model',
   'year',
   'odometerReading',
+  'odometerAtEffective',
 ];
+
+const REQUIRED_FIELDS = EXTRACTABLE_FIELDS.filter(
+  (field) => field !== 'odometerAtEffective'
+);
 
 function validateForm(
   values: FormValues,
@@ -41,7 +47,7 @@ function validateForm(
 ): FieldErrors {
   const errors: FieldErrors = {};
 
-  for (const field of EXTRACTABLE_FIELDS) {
+  for (const field of REQUIRED_FIELDS) {
     if (!values[field]?.trim()) {
       errors[field] = 'This field is required.';
     }
@@ -343,6 +349,15 @@ export function ClaimForm() {
           <FormField label="Model" name="model" value={values.model} onChange={updateField} error={errors.model} autofilled={autofilled.has('model')} />
           <FormField label="Year" name="year" type="number" value={values.year} onChange={updateField} error={errors.year} autofilled={autofilled.has('year')} />
           <FormField label="Odometer Reading" name="odometerReading" type="number" value={values.odometerReading} onChange={updateField} error={errors.odometerReading} autofilled={autofilled.has('odometerReading')} />
+          <FormField
+            label="Odometer at Policy Start"
+            name="odometerAtEffective"
+            type="number"
+            value={values.odometerAtEffective}
+            onChange={updateField}
+            error={errors.odometerAtEffective}
+            autofilled={autofilled.has('odometerAtEffective')}
+          />
         </div>
       </section>
 

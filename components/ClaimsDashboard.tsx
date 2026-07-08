@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CONTRACT_TYPES } from '@/lib/contracts/types';
+import type { ClaimPortalStats } from '@/lib/claims-store';
 import {
   filterClaims,
-  portalStats,
   sortClaims,
   type ClaimFilter,
   type ContractFilter,
@@ -22,9 +22,17 @@ const QUEUE_FILTERS: { id: ClaimFilter; label: string; tone?: 'pending' | 'denie
   { id: 'under_review', label: 'Under review' },
 ];
 
+type ClaimsPage = {
+  claims: PortalClaim[];
+  nextCursor: string | null;
+};
+
 export function ClaimsDashboard() {
   const [claims, setClaims] = useState<PortalClaim[]>([]);
+  const [stats, setStats] = useState<ClaimPortalStats | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<ClaimFilter>('action_needed');
   const [contractFilter, setContractFilter] = useState<ContractFilter>('all');
@@ -33,40 +41,94 @@ export function ClaimsDashboard() {
   );
   const [search, setSearch] = useState('');
 
-  const loadClaims = useCallback(async () => {
+  const loadClaims = useCallback(async (cursor?: string) => {
     setError(null);
+    const loadingMorePage = Boolean(cursor);
+
     try {
-      const response = await fetch('/api/claims');
+      const url = cursor
+        ? `/api/claims?cursor=${encodeURIComponent(cursor)}`
+        : '/api/claims';
+      const response = await fetch(url);
       if (response.status === 401) {
         window.location.href = '/login?next=/claims';
         return;
       }
       if (!response.ok) throw new Error('Failed to load claims');
-      const data = await response.json();
-      setClaims(data);
+
+      const data = (await response.json()) as ClaimsPage;
+      setClaims((current) =>
+        cursor ? [...current, ...data.claims] : data.claims
+      );
+      setNextCursor(data.nextCursor);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load claims');
     } finally {
+      if (loadingMorePage) {
+        setLoadingMore(false);
+      } else {
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const response = await fetch('/api/claims/stats');
+      if (response.status === 401) {
+        window.location.href = '/login?next=/claims';
+        return;
+      }
+      if (!response.ok) throw new Error('Failed to load claim stats');
+      setStats((await response.json()) as ClaimPortalStats);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load claim stats');
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    loadClaims();
-  }, [loadClaims]);
+  const refreshWorkbench = useCallback(async () => {
+    setLoading(true);
+    await Promise.all([loadStats(), loadClaims()]);
+  }, [loadClaims, loadStats]);
 
-  const stats = useMemo(() => portalStats(claims), [claims]);
+  useEffect(() => {
+    void refreshWorkbench();
+  }, [refreshWorkbench]);
+
+  const queueStats = useMemo(
+    () =>
+      stats ?? {
+        total: claims.length,
+        pending: 0,
+        underReview: 0,
+        approved: 0,
+        denied: 0,
+        needsInfo: 0,
+        guidelineFlags: 0,
+        noAi: 0,
+        highRisk: 0,
+        actionQueue: 0,
+      },
+    [stats, claims.length]
+  );
 
   const queueInsight = useMemo(() => {
-    if (stats.actionQueue === 0) {
+    if (queueStats.actionQueue === 0) {
       return 'Queue clear — no claims need immediate adjuster action.';
     }
-    const parts = [`${stats.actionQueue} claim${stats.actionQueue === 1 ? '' : 's'} need action`];
-    if (stats.noAi > 0) parts.push(`${stats.noAi} without AI scan`);
-    if (stats.needsInfo > 0) parts.push(`${stats.needsInfo} awaiting information`);
-    if (stats.guidelineFlags > 0) parts.push(`${stats.guidelineFlags} with guideline flags`);
+    const parts = [
+      `${queueStats.actionQueue} claim${queueStats.actionQueue === 1 ? '' : 's'} need action`,
+    ];
+    if (queueStats.noAi > 0) parts.push(`${queueStats.noAi} without AI scan`);
+    if (queueStats.needsInfo > 0) {
+      parts.push(`${queueStats.needsInfo} awaiting information`);
+    }
+    if (queueStats.guidelineFlags > 0) {
+      parts.push(`${queueStats.guidelineFlags} with guideline flags`);
+    }
     return `${parts.join(' · ')}. Work highest-priority items first.`;
-  }, [stats]);
+  }, [queueStats]);
 
   const visibleClaims = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -113,7 +175,7 @@ export function ClaimsDashboard() {
       <div className="adjuster-loading">
         <div className="form-error">
           {error}{' '}
-          <button type="button" className="link-button" onClick={loadClaims}>
+          <button type="button" className="link-button" onClick={refreshWorkbench}>
             Retry
           </button>
         </div>
@@ -131,7 +193,7 @@ export function ClaimsDashboard() {
               <StatCard
                 key={filter.id}
                 label={filter.label}
-                value={statValueForFilter(filter.id, stats)}
+                value={statValueForFilter(filter.id, queueStats)}
                 tone={filter.tone}
                 active={statusFilter === filter.id}
                 onClick={() => setStatusFilter(filter.id)}
@@ -143,9 +205,9 @@ export function ClaimsDashboard() {
         <section className="adjuster-sidebar-section">
           <h2 className="adjuster-sidebar-title">Outcomes</h2>
           <div className="adjuster-sidebar-stats adjuster-sidebar-stats-compact">
-            <StatCard label="Total" value={stats.total} />
-            <StatCard label="Approved" value={stats.approved} tone="approved" />
-            <StatCard label="Denied" value={stats.denied} tone="denied" />
+            <StatCard label="Total" value={queueStats.total} />
+            <StatCard label="Approved" value={queueStats.approved} tone="approved" />
+            <StatCard label="Denied" value={queueStats.denied} tone="denied" />
           </div>
         </section>
 
@@ -236,7 +298,7 @@ export function ClaimsDashboard() {
           <button
             type="button"
             className="button button-secondary button-sm portal-refresh"
-            onClick={loadClaims}
+            onClick={refreshWorkbench}
           >
             Refresh
           </button>
@@ -267,7 +329,10 @@ export function ClaimsDashboard() {
 
         <div className="portal-results-bar">
           <p className="portal-results-meta">
-            Showing <strong>{visibleClaims.length}</strong> of {claims.length} claims
+            Showing <strong>{visibleClaims.length}</strong> loaded
+            {queueStats.total > claims.length
+              ? ` of ${queueStats.total} total claims`
+              : ` of ${claims.length} claims`}
           </p>
           <button
             type="button"
@@ -278,7 +343,7 @@ export function ClaimsDashboard() {
           </button>
         </div>
 
-        {claims.length === 0 ? (
+        {queueStats.total === 0 ? (
           <p className="empty-state">
             No claims yet. <Link href="/submit">Submit the first claim</Link>.
           </p>
@@ -295,10 +360,26 @@ export function ClaimsDashboard() {
               <ClaimCard
                 key={claim._id}
                 claim={claim}
-                onRefresh={loadClaims}
+                onRefresh={refreshWorkbench}
                 defaultExpanded={index === 0 && statusFilter === 'action_needed'}
               />
             ))}
+          </div>
+        )}
+
+        {nextCursor && (
+          <div className="portal-load-more">
+            <button
+              type="button"
+              className="button button-secondary"
+              disabled={loadingMore}
+              onClick={() => {
+                setLoadingMore(true);
+                void loadClaims(nextCursor);
+              }}
+            >
+              {loadingMore ? 'Loading more claims…' : 'Load more claims'}
+            </button>
           </div>
         )}
       </div>
@@ -306,10 +387,7 @@ export function ClaimsDashboard() {
   );
 }
 
-function statValueForFilter(
-  filter: ClaimFilter,
-  stats: ReturnType<typeof portalStats>
-): number {
+function statValueForFilter(filter: ClaimFilter, stats: ClaimPortalStats): number {
   switch (filter) {
     case 'action_needed':
       return stats.actionQueue;

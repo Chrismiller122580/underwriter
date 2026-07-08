@@ -19,43 +19,92 @@ export async function checkRateLimit(
   const now = new Date();
   const resetAt = new Date(now.getTime() + windowMs);
 
-  const existing = (await sql`
-    SELECT hits, reset_at FROM rate_limits WHERE id = ${key}
+  const incremented = (await sql`
+    UPDATE rate_limits
+    SET hits = hits + 1
+    WHERE id = ${key}
+      AND reset_at > ${now.toISOString()}
+      AND hits < ${limit}
+    RETURNING hits, reset_at
   `) as { hits: number; reset_at: string }[];
 
-  if (existing.length === 0) {
-    await sql`
-      INSERT INTO rate_limits (id, hits, reset_at)
-      VALUES (${key}, 1, ${resetAt.toISOString()})
-      ON CONFLICT (id) DO UPDATE SET hits = 1, reset_at = ${resetAt.toISOString()}
-    `;
-    return { allowed: true, remaining: limit - 1, resetAt };
+  if (incremented.length > 0) {
+    const row = incremented[0];
+    return {
+      allowed: true,
+      remaining: Math.max(0, limit - row.hits),
+      resetAt: new Date(row.reset_at),
+    };
   }
 
-  const row = existing[0];
-  const rowReset = new Date(row.reset_at);
+  const blocked = (await sql`
+    SELECT hits, reset_at
+    FROM rate_limits
+    WHERE id = ${key}
+      AND reset_at > ${now.toISOString()}
+      AND hits >= ${limit}
+  `) as { hits: number; reset_at: string }[];
 
-  if (rowReset <= now) {
-    await sql`
-      UPDATE rate_limits SET hits = 1, reset_at = ${resetAt.toISOString()}
-      WHERE id = ${key}
-    `;
-    return { allowed: true, remaining: limit - 1, resetAt };
+  if (blocked.length > 0) {
+    return {
+      allowed: false,
+      remaining: 0,
+      resetAt: new Date(blocked[0].reset_at),
+    };
   }
 
-  if (row.hits >= limit) {
-    return { allowed: false, remaining: 0, resetAt: rowReset };
+  const upserted = (await sql`
+    INSERT INTO rate_limits (id, hits, reset_at)
+    VALUES (${key}, 1, ${resetAt.toISOString()})
+    ON CONFLICT (id) DO UPDATE
+    SET hits = 1, reset_at = ${resetAt.toISOString()}
+    WHERE rate_limits.reset_at <= ${now.toISOString()}
+    RETURNING hits, reset_at
+  `) as { hits: number; reset_at: string }[];
+
+  if (upserted.length > 0) {
+    return {
+      allowed: true,
+      remaining: limit - 1,
+      resetAt: new Date(upserted[0].reset_at),
+    };
   }
 
-  await sql`
-    UPDATE rate_limits SET hits = hits + 1 WHERE id = ${key}
-  `;
+  const retried = (await sql`
+    UPDATE rate_limits
+    SET hits = hits + 1
+    WHERE id = ${key}
+      AND reset_at > ${now.toISOString()}
+      AND hits < ${limit}
+    RETURNING hits, reset_at
+  `) as { hits: number; reset_at: string }[];
 
-  return {
-    allowed: true,
-    remaining: limit - row.hits - 1,
-    resetAt: rowReset,
-  };
+  if (retried.length > 0) {
+    const row = retried[0];
+    return {
+      allowed: true,
+      remaining: Math.max(0, limit - row.hits),
+      resetAt: new Date(row.reset_at),
+    };
+  }
+
+  const stillBlocked = (await sql`
+    SELECT reset_at
+    FROM rate_limits
+    WHERE id = ${key}
+      AND reset_at > ${now.toISOString()}
+      AND hits >= ${limit}
+  `) as { reset_at: string }[];
+
+  if (stillBlocked.length > 0) {
+    return {
+      allowed: false,
+      remaining: 0,
+      resetAt: new Date(stillBlocked[0].reset_at),
+    };
+  }
+
+  return { allowed: true, remaining: limit - 1, resetAt };
 }
 
 export function getClientIp(request: Request): string {

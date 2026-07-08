@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 type Session = {
   authenticated: boolean;
@@ -124,6 +125,7 @@ export function AppNav() {
           </nav>
 
           <div className="nav-auth">
+            <ThemeToggle />
             {isAuthenticated ? (
               <>
                 <span
@@ -163,6 +165,7 @@ export function AppNav() {
         <div className="nav-mobile-inner">
           <div className="nav-links">{visibleLinks.map(renderLink)}</div>
           <div className="nav-auth">
+            <ThemeToggle />
             {isAuthenticated ? (
               <>
                 <span

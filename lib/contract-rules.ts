@@ -82,16 +82,6 @@ export function evaluateContractRules(claim: ClaimRecord): ContractRuleResult {
     };
   }
 
-  if (estimate > def.maxPerClaim) {
-    flags.push(`Repair estimate $${estimate} exceeds per-claim limit $${def.maxPerClaim}`);
-    return {
-      decision: 'denied',
-      reason: `DENIED — Repair estimate exceeds $${def.maxPerClaim.toLocaleString()} per-claim limit.`,
-      flags,
-      denialCategory: 'limit_exceeded',
-    };
-  }
-
   if (!odometer || odometer <= 0) {
     flags.push('Current mileage is required to validate contract');
     return {
@@ -109,6 +99,42 @@ export function evaluateContractRules(claim: ClaimRecord): ContractRuleResult {
       reason: 'Cannot authorize until accurate mileage is provided.',
       flags,
       denialCategory: null,
+    };
+  }
+
+  const odometerAtEffective = claim.vehicleInfo.odometerAtEffective;
+  if (odometerAtEffective == null || odometerAtEffective < 0) {
+    flags.push(
+      `Odometer at policy effective date required to verify ${def.waitingPeriodMiles}-mile waiting period`
+    );
+    return {
+      decision: 'pending',
+      reason: 'Mileage at policy start required to verify waiting-period miles.',
+      flags,
+      denialCategory: null,
+    };
+  }
+
+  const milesSinceEffective = odometer - odometerAtEffective;
+  if (milesSinceEffective < def.waitingPeriodMiles) {
+    flags.push(
+      `Waiting period not met: ${milesSinceEffective} miles since effective (requires ${def.waitingPeriodMiles})`
+    );
+    return {
+      decision: 'denied',
+      reason: 'DENIED — Waiting Period Not Met (miles).',
+      flags,
+      denialCategory: 'waiting_period',
+    };
+  }
+
+  if (estimate > def.maxPerClaim) {
+    flags.push(`Repair estimate $${estimate} exceeds per-claim limit $${def.maxPerClaim}`);
+    return {
+      decision: 'denied',
+      reason: `DENIED — Repair estimate exceeds $${def.maxPerClaim.toLocaleString()} per-claim limit.`,
+      flags,
+      denialCategory: 'limit_exceeded',
     };
   }
 

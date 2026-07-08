@@ -1,7 +1,7 @@
 import { runAiAnalysis } from '@/lib/claims-store';
 import { logger } from '@/lib/logger';
 
-export function scheduleAiAnalysis(claimId: string): void {
+export async function scheduleAiAnalysis(claimId: string): Promise<void> {
   const task = runAiAnalysis(claimId)
     .then((result) => {
       if (result) {
@@ -19,6 +19,10 @@ export function scheduleAiAnalysis(claimId: string): void {
     });
 
   if (process.env.VERCEL) {
-    import('@vercel/functions').then(({ waitUntil }) => waitUntil(task));
+    const { waitUntil } = await import('@vercel/functions');
+    waitUntil(task);
+    return;
   }
+
+  await task;
 }

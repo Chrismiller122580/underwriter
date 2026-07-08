@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { canManageKnowledge, getSessionFromCookies } from '@/lib/auth';
-import { listClaims, runAiAnalysis } from '@/lib/claims-store';
+import { listClaimsForScope, runAiAnalysis } from '@/lib/claims-store';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -19,16 +19,7 @@ export async function POST(request: Request) {
 
   try {
     const body = bodySchema.parse(await request.json().catch(() => ({})));
-    const claims = await listClaims();
-
-    const filtered = claims.filter((claim) => {
-      if (body.scope === 'pending') return claim.status === 'pending';
-      if (body.scope === 'under_review') return claim.status === 'under_review';
-      if (body.scope === 'unanalyzed') return !claim.aiAnalysis;
-      return true;
-    });
-
-    const targets = filtered.slice(0, body.limit);
+    const targets = await listClaimsForScope(body.scope, body.limit);
     const results: {
       claimId: string;
       ok: boolean;
@@ -68,7 +59,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       scope: body.scope,
-      matched: filtered.length,
+      matched: targets.length,
       processed: results.filter((item) => item.ok).length,
       failed: results.filter((item) => !item.ok).length,
       results,

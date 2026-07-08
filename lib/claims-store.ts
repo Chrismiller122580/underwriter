@@ -27,6 +27,7 @@ export type ClaimRecord = {
     year: number;
     vin: string;
     odometerReading: number;
+    odometerAtEffective?: number;
   };
   claimantInformation: {
     name: string;
@@ -92,12 +93,177 @@ function mapRow(row: ClaimRow): ClaimRecord {
   };
 }
 
-export async function listClaims(): Promise<ClaimRecord[]> {
+export type ClaimPortalStats = {
+  total: number;
+  pending: number;
+  underReview: number;
+  approved: number;
+  denied: number;
+  needsInfo: number;
+  guidelineFlags: number;
+  noAi: number;
+  highRisk: number;
+  actionQueue: number;
+};
+
+export type ListClaimsResult = {
+  claims: ClaimRecord[];
+  nextCursor: string | null;
+};
+
+const DEFAULT_LIST_LIMIT = 50;
+const MAX_LIST_LIMIT = 200;
+
+function encodeCursor(createdAt: string, id: string): string {
+  return Buffer.from(`${createdAt}|${id}`).toString('base64url');
+}
+
+function decodeCursor(cursor: string): [string, string] {
+  const decoded = Buffer.from(cursor, 'base64url').toString('utf8');
+  const [createdAt, id] = decoded.split('|');
+  if (!createdAt || !id) {
+    throw new Error('Invalid pagination cursor');
+  }
+  return [createdAt, id];
+}
+
+export async function listClaims(options?: {
+  limit?: number;
+  cursor?: string;
+}): Promise<ListClaimsResult> {
   await ensureSchema();
   const sql = getSql();
+  const limit = Math.min(
+    Math.max(options?.limit ?? DEFAULT_LIST_LIMIT, 1),
+    MAX_LIST_LIMIT
+  );
+
+  let rows: ClaimRow[];
+
+  if (options?.cursor) {
+    const [cursorCreatedAt, cursorId] = decodeCursor(options.cursor);
+    rows = (await sql`
+      SELECT * FROM claims
+      WHERE (created_at, id) < (${cursorCreatedAt}::timestamptz, ${cursorId}::uuid)
+      ORDER BY created_at DESC, id DESC
+      LIMIT ${limit + 1}
+    `) as ClaimRow[];
+  } else {
+    rows = (await sql`
+      SELECT * FROM claims
+      ORDER BY created_at DESC, id DESC
+      LIMIT ${limit + 1}
+    `) as ClaimRow[];
+  }
+
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+  const last = page[page.length - 1];
+
+  return {
+    claims: page.map(mapRow),
+    nextCursor:
+      hasMore && last
+        ? encodeCursor(new Date(last.created_at).toISOString(), last.id)
+        : null,
+  };
+}
+
+export async function getClaimPortalStats(): Promise<ClaimPortalStats> {
+  await ensureSchema();
+  const sql = getSql();
+
   const rows = (await sql`
-    SELECT * FROM claims ORDER BY created_at DESC
-  `) as ClaimRow[];
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
+      COUNT(*) FILTER (WHERE status = 'under_review')::int AS under_review,
+      COUNT(*) FILTER (WHERE status = 'approved')::int AS approved,
+      COUNT(*) FILTER (WHERE status = 'denied')::int AS denied,
+      COUNT(*) FILTER (
+        WHERE COALESCE(jsonb_array_length(ai_analysis->'informationRequests'), 0) > 0
+      )::int AS needs_info,
+      COUNT(*) FILTER (
+        WHERE COALESCE(jsonb_array_length(ai_analysis->'guidelineConflicts'), 0) > 0
+      )::int AS guideline_flags,
+      COUNT(*) FILTER (WHERE ai_analysis IS NULL)::int AS no_ai,
+      COUNT(*) FILTER (
+        WHERE COALESCE((ai_analysis->>'riskScore')::numeric, 0) >= 7
+      )::int AS high_risk,
+      COUNT(*) FILTER (
+        WHERE status IN ('pending', 'under_review')
+          OR ai_analysis IS NULL
+          OR COALESCE(jsonb_array_length(ai_analysis->'informationRequests'), 0) > 0
+          OR COALESCE(jsonb_array_length(ai_analysis->'guidelineConflicts'), 0) > 0
+      )::int AS action_queue
+    FROM claims
+  `) as {
+    total: number;
+    pending: number;
+    under_review: number;
+    approved: number;
+    denied: number;
+    needs_info: number;
+    guideline_flags: number;
+    no_ai: number;
+    high_risk: number;
+    action_queue: number;
+  }[];
+
+  const row = rows[0];
+  return {
+    total: row.total,
+    pending: row.pending,
+    underReview: row.under_review,
+    approved: row.approved,
+    denied: row.denied,
+    needsInfo: row.needs_info,
+    guidelineFlags: row.guideline_flags,
+    noAi: row.no_ai,
+    highRisk: row.high_risk,
+    actionQueue: row.action_queue,
+  };
+}
+
+export async function listClaimsForScope(
+  scope: 'pending' | 'under_review' | 'unanalyzed' | 'all',
+  limit: number
+): Promise<ClaimRecord[]> {
+  await ensureSchema();
+  const sql = getSql();
+  const cappedLimit = Math.min(Math.max(limit, 1), 25);
+
+  let rows: ClaimRow[];
+
+  if (scope === 'pending') {
+    rows = (await sql`
+      SELECT * FROM claims
+      WHERE status = 'pending'
+      ORDER BY created_at DESC
+      LIMIT ${cappedLimit}
+    `) as ClaimRow[];
+  } else if (scope === 'under_review') {
+    rows = (await sql`
+      SELECT * FROM claims
+      WHERE status = 'under_review'
+      ORDER BY created_at DESC
+      LIMIT ${cappedLimit}
+    `) as ClaimRow[];
+  } else if (scope === 'unanalyzed') {
+    rows = (await sql`
+      SELECT * FROM claims
+      WHERE ai_analysis IS NULL
+      ORDER BY created_at DESC
+      LIMIT ${cappedLimit}
+    `) as ClaimRow[];
+  } else {
+    rows = (await sql`
+      SELECT * FROM claims
+      ORDER BY created_at DESC
+      LIMIT ${cappedLimit}
+    `) as ClaimRow[];
+  }
+
   return rows.map(mapRow);
 }
 
@@ -200,6 +366,20 @@ export async function runAiAnalysis(
   return { claim: updated, analysis };
 }
 
+const UNDERWRITABLE_STATUSES = new Set(['pending', 'under_review']);
+
+export class ClaimNotUnderwritableError extends Error {
+  readonly claim: ClaimRecord;
+
+  constructor(claim: ClaimRecord) {
+    super(
+      `Claim ${claim._id} cannot be underwritten while status is "${claim.status}"`
+    );
+    this.name = 'ClaimNotUnderwritableError';
+    this.claim = claim;
+  }
+}
+
 export async function underwriteClaimById(
   id: string
 ): Promise<{
@@ -209,6 +389,10 @@ export async function underwriteClaimById(
 } | null> {
   const claim = await getClaimById(id);
   if (!claim) return null;
+
+  if (!UNDERWRITABLE_STATUSES.has(claim.status)) {
+    throw new ClaimNotUnderwritableError(claim);
+  }
 
   const ruleResult = evaluateContractRules(claim);
 

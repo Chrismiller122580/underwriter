@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 function scrollToInfo() {
   document.getElementById('learn-more')?.scrollIntoView({ behavior: 'smooth' });
@@ -9,6 +10,9 @@ function scrollToInfo() {
 export function LandingPage() {
   return (
     <div className="landing">
+      <div className="landing-theme-toggle">
+        <ThemeToggle className="theme-toggle-on-dark" />
+      </div>
       <section className="landing-hero">
         <div className="landing-hero-inner">
           <p className="landing-eyebrow">Freedom Warranty · Claims Intelligence</p>
