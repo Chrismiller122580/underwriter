@@ -52,5 +52,15 @@ export async function ensureSchema(): Promise<void> {
     ALTER TABLE claims ADD COLUMN IF NOT EXISTS ai_analysis JSONB
   `;
 
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_claims_ai_analysis_gin
+    ON claims USING GIN (ai_analysis)
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_claims_missing_ai
+    ON claims (created_at DESC)
+    WHERE ai_analysis IS NULL
+  `;
+
   schemaReady = true;
 }

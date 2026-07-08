@@ -1,15 +1,23 @@
 'use client';
 
 import { useState } from 'react';
+import type { AiAnalysis } from '@/lib/ai-types';
+
+export type AnalyzeResult = {
+  aiAnalysis: AiAnalysis;
+  reused: boolean;
+};
 
 export function AnalyzeButton({
   claimId,
   onComplete,
   label = 'Run AI Scan',
+  force = false,
 }: {
   claimId: string;
-  onComplete?: () => void;
+  onComplete?: (result: AnalyzeResult) => void;
   label?: string;
+  force?: boolean;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +27,10 @@ export function AnalyzeButton({
     setError(null);
 
     try {
-      const response = await fetch(`/api/claims/${claimId}/analyze`, {
+      const url = force
+        ? `/api/claims/${claimId}/analyze?force=true`
+        : `/api/claims/${claimId}/analyze`;
+      const response = await fetch(url, {
         method: 'POST',
       });
 
@@ -33,7 +44,14 @@ export function AnalyzeButton({
         throw new Error(body.error ?? 'AI analysis failed');
       }
 
-      onComplete?.();
+      const data = (await response.json()) as {
+        aiAnalysis: AiAnalysis;
+        reused?: boolean;
+      };
+      onComplete?.({
+        aiAnalysis: data.aiAnalysis,
+        reused: Boolean(data.reused),
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'AI analysis failed');
     } finally {

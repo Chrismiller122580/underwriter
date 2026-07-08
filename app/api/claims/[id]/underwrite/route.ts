@@ -16,8 +16,9 @@ type RouteContext = {
   params: { id: string };
 };
 
-export async function POST(_request: Request, context: RouteContext) {
+export async function POST(request: Request, context: RouteContext) {
   const { id } = context.params;
+  const force = new URL(request.url).searchParams.get('force') === 'true';
 
   const session = await getSessionFromCookies();
   if (!session || !canUnderwrite(session.role)) {
@@ -29,7 +30,7 @@ export async function POST(_request: Request, context: RouteContext) {
   }
 
   try {
-    const outcome = await underwriteClaimById(id);
+    const outcome = await underwriteClaimById(id, { force });
     if (!outcome) {
       return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
     }
@@ -47,7 +48,9 @@ export async function POST(_request: Request, context: RouteContext) {
       decision: result.decision,
       reason: result.reason,
       status: claim.status,
+      underwriting: claim.underwriting,
       aiAnalysis,
+      aiReused: outcome.aiReused,
     });
   } catch (error) {
     if (error instanceof ClaimNotUnderwritableError) {

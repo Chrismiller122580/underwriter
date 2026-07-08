@@ -4,6 +4,14 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { TutorialToggle } from '@/components/TutorialToggle';
+import {
+  defaultTutorialState,
+  emitTutorialChange,
+  getTutorialUserKey,
+  readTutorialState,
+  writeTutorialState,
+} from '@/lib/onboarding-tutorial';
 
 type Session = {
   authenticated: boolean;
@@ -16,12 +24,12 @@ type NavItem = {
   label: string;
 };
 
-const PUBLIC_LINKS: NavItem[] = [
-  { href: '/', label: 'Home' },
+const PUBLIC_LINKS: NavItem[] = [{ href: '/', label: 'Home' }];
+
+const STAFF_LINKS: NavItem[] = [
+  { href: '/claims', label: 'Dashboard' },
   { href: '/submit', label: 'Submit Claim' },
 ];
-
-const STAFF_LINKS: NavItem[] = [{ href: '/claims', label: 'Dashboard' }];
 
 const SUPERVISOR_LINKS: NavItem[] = [
   { href: '/admin/toolbox', label: 'Supervisor Toolbox' },
@@ -38,6 +46,7 @@ export function AppNav() {
   const [session, setSession] = useState<Session | null>(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [tutorialEnabled, setTutorialEnabled] = useState(false);
 
   useEffect(() => {
     setSessionLoaded(false);
@@ -47,6 +56,28 @@ export function AppNav() {
       .catch(() => setSession({ authenticated: false }))
       .finally(() => setSessionLoaded(true));
   }, [pathname]);
+
+  const tutorialUserKey = getTutorialUserKey(session?.email, session?.role);
+
+  useEffect(() => {
+    if (!session?.authenticated || !tutorialUserKey) {
+      setTutorialEnabled(false);
+      return;
+    }
+
+    const stored = readTutorialState(tutorialUserKey) ?? defaultTutorialState();
+    setTutorialEnabled(stored.enabled || !stored.completed);
+  }, [session?.authenticated, session?.email, session?.role, tutorialUserKey]);
+
+  function handleTutorialToggle(enabled: boolean) {
+    if (!tutorialUserKey) return;
+
+    const stored = readTutorialState(tutorialUserKey) ?? defaultTutorialState();
+    const next = { completed: stored.completed, enabled };
+    writeTutorialState(tutorialUserKey, next);
+    emitTutorialChange(next);
+    setTutorialEnabled(enabled);
+  }
 
   useEffect(() => {
     setMenuOpen(false);
@@ -96,7 +127,9 @@ export function AppNav() {
 
   const loginHref = pathname.startsWith('/admin')
     ? '/login?next=/admin/toolbox&role=supervisor'
-    : '/login';
+    : pathname.startsWith('/submit')
+      ? '/login?next=/submit'
+      : '/login';
 
   return (
     <header className="app-header">
@@ -126,6 +159,12 @@ export function AppNav() {
 
           <div className="nav-auth">
             <ThemeToggle />
+            {isAuthenticated ? (
+              <TutorialToggle
+                enabled={tutorialEnabled}
+                onChange={handleTutorialToggle}
+              />
+            ) : null}
             {isAuthenticated ? (
               <>
                 <span
@@ -166,6 +205,12 @@ export function AppNav() {
           <div className="nav-links">{visibleLinks.map(renderLink)}</div>
           <div className="nav-auth">
             <ThemeToggle />
+            {isAuthenticated ? (
+              <TutorialToggle
+                enabled={tutorialEnabled}
+                onChange={handleTutorialToggle}
+              />
+            ) : null}
             {isAuthenticated ? (
               <>
                 <span

@@ -9,8 +9,9 @@ type RouteContext = {
   params: { id: string };
 };
 
-export async function POST(_request: Request, context: RouteContext) {
+export async function POST(request: Request, context: RouteContext) {
   const { id } = context.params;
+  const force = new URL(request.url).searchParams.get('force') === 'true';
 
   const session = await getSessionFromCookies();
   if (!session || !canUnderwrite(session.role)) {
@@ -22,7 +23,7 @@ export async function POST(_request: Request, context: RouteContext) {
   }
 
   try {
-    const outcome = await runAiAnalysis(id);
+    const outcome = await runAiAnalysis(id, { force });
     if (!outcome) {
       return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
     }
@@ -37,6 +38,7 @@ export async function POST(_request: Request, context: RouteContext) {
     return NextResponse.json({
       id: outcome.claim._id,
       aiAnalysis: outcome.analysis,
+      reused: outcome.reused,
     });
   } catch (error) {
     logger.error('AI analysis failed', {

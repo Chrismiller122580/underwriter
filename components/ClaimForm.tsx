@@ -111,25 +111,29 @@ async function submitWithBlobUpload(
   contractVariant: 'standard' | 'manufacturer_extension',
   onProgress: (percent: number) => void
 ): Promise<{ ok: boolean; status: number; body: unknown }> {
-  const documents: Record<string, string> = {};
   const fieldsWithFiles = FILE_FIELDS.filter((field) => files[field]);
+  let completedUploads = 0;
 
-  for (let i = 0; i < fieldsWithFiles.length; i++) {
-    const field = fieldsWithFiles[i];
-    const file = files[field]!;
+  const uploadResults = await Promise.all(
+    fieldsWithFiles.map(async (field) => {
+      const file = files[field]!;
+      const blob = await upload(file.name, file, {
+        access: 'public',
+        handleUploadUrl: '/api/upload',
+      });
 
-    const blob = await upload(file.name, file, {
-      access: 'public',
-      handleUploadUrl: '/api/upload',
-    });
+      completedUploads += 1;
+      onProgress(
+        fieldsWithFiles.length > 0
+          ? Math.round((completedUploads / fieldsWithFiles.length) * 85)
+          : 85
+      );
 
-    documents[field] = blob.url;
-    onProgress(
-      fieldsWithFiles.length > 0
-        ? Math.round(((i + 1) / fieldsWithFiles.length) * 85)
-        : 85
-    );
-  }
+      return [field, blob.url] as const;
+    })
+  );
+
+  const documents = Object.fromEntries(uploadResults);
 
   const response = await fetch('/api/claims', {
     method: 'POST',

@@ -1,10 +1,16 @@
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { NextResponse } from 'next/server';
+import { canUnderwrite, getSessionFromCookies } from '@/lib/auth';
 import { MAX_FILE_SIZE_BYTES } from '@/lib/parse-claim-form';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { logger } from '@/lib/logger';
 
 export async function POST(request: Request): Promise<NextResponse> {
+  const session = await getSessionFromCookies();
+  if (!session || !canUnderwrite(session.role)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const ip = getClientIp(request);
   const rateLimit = await checkRateLimit(`upload:${ip}`, 30, 60 * 60 * 1000);
 

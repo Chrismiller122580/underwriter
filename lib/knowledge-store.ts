@@ -170,7 +170,9 @@ export async function createKnowledgeFromBuffer(input: {
     RETURNING *
   `) as KnowledgeRow[];
 
-  return mapRow(rows[0]);
+  const document = mapRow(rows[0]);
+  invalidateKnowledgeContextCache();
+  return document;
 }
 
 export async function getKnowledgeStats() {
@@ -236,7 +238,9 @@ export async function createKnowledgeDocument(input: {
     RETURNING *
   `) as KnowledgeRow[];
 
-  return mapRow(rows[0]);
+  const document = mapRow(rows[0]);
+  invalidateKnowledgeContextCache();
+  return document;
 }
 
 export async function setKnowledgeDocumentActive(
@@ -255,7 +259,9 @@ export async function setKnowledgeDocumentActive(
   `) as KnowledgeRow[];
 
   if (rows.length === 0) return null;
-  return mapRow(rows[0]);
+  const document = mapRow(rows[0]);
+  invalidateKnowledgeContextCache();
+  return document;
 }
 
 export async function deleteKnowledgeDocument(id: string): Promise<boolean> {
@@ -268,12 +274,34 @@ export async function deleteKnowledgeDocument(id: string): Promise<boolean> {
     RETURNING id
   `) as { id: string }[];
 
+  if (rows.length > 0) {
+    invalidateKnowledgeContextCache();
+  }
   return rows.length > 0;
 }
 
+const KNOWLEDGE_CONTEXT_CACHE_TTL_MS = 5 * 60 * 1000;
+
+let knowledgeContextCache: { value: string; fetchedAt: number } | null = null;
+
+export function invalidateKnowledgeContextCache(): void {
+  knowledgeContextCache = null;
+}
+
 export async function buildKnowledgeContext(): Promise<string> {
+  const now = Date.now();
+  if (
+    knowledgeContextCache &&
+    now - knowledgeContextCache.fetchedAt < KNOWLEDGE_CONTEXT_CACHE_TTL_MS
+  ) {
+    return knowledgeContextCache.value;
+  }
+
   const docs = await listActiveKnowledgeDocuments();
-  if (docs.length === 0) return '';
+  if (docs.length === 0) {
+    knowledgeContextCache = { value: '', fetchedAt: now };
+    return '';
+  }
 
   const sections: string[] = [];
   let totalChars = 0;
@@ -290,12 +318,18 @@ export async function buildKnowledgeContext(): Promise<string> {
     totalChars += section.length;
   }
 
-  if (sections.length === 0) return '';
+  if (sections.length === 0) {
+    knowledgeContextCache = { value: '', fetchedAt: now };
+    return '';
+  }
 
-  return [
+  const value = [
     'SUPERVISOR-UPLOADED UNDERWRITING KNOWLEDGE (apply alongside base guidelines):',
     ...sections,
   ].join('\n\n');
+
+  knowledgeContextCache = { value, fetchedAt: now };
+  return value;
 }
 
 let knowledgeSchemaReady = false;

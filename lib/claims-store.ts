@@ -1,6 +1,7 @@
 import { ensureSchema, getSql } from '@/lib/db';
 import type { ParsedClaimForm } from '@/lib/parse-claim-form';
 import { buildClaimDocument } from '@/lib/parse-claim-form';
+import { shouldReuseAiAnalysis } from '@/lib/ai-analysis-cache';
 import {
   analyzeClaimWithAi,
   combineDecisions,
@@ -354,16 +355,35 @@ export function isValidClaimId(id: string): boolean {
   return UUID_RE.test(id);
 }
 
+export type AiAnalysisOptions = {
+  force?: boolean;
+};
+
+async function resolveAiAnalysis(
+  claim: ClaimRecord,
+  options: AiAnalysisOptions = {}
+): Promise<AiAnalysis> {
+  if (shouldReuseAiAnalysis(claim.aiAnalysis, options.force)) {
+    return claim.aiAnalysis;
+  }
+  return analyzeClaimWithAi(claim);
+}
+
 export async function runAiAnalysis(
-  id: string
-): Promise<{ claim: ClaimRecord; analysis: AiAnalysis } | null> {
+  id: string,
+  options: AiAnalysisOptions = {}
+): Promise<{ claim: ClaimRecord; analysis: AiAnalysis; reused: boolean } | null> {
   const claim = await getClaimById(id);
   if (!claim) return null;
+
+  if (shouldReuseAiAnalysis(claim.aiAnalysis, options.force)) {
+    return { claim, analysis: claim.aiAnalysis, reused: true };
+  }
 
   const analysis = await analyzeClaimWithAi(claim);
   const updated = await saveAiAnalysis(id, analysis);
 
-  return { claim: updated, analysis };
+  return { claim: updated, analysis, reused: false };
 }
 
 const UNDERWRITABLE_STATUSES = new Set(['pending', 'under_review']);
@@ -381,11 +401,13 @@ export class ClaimNotUnderwritableError extends Error {
 }
 
 export async function underwriteClaimById(
-  id: string
+  id: string,
+  options: AiAnalysisOptions = {}
 ): Promise<{
   claim: ClaimRecord;
   result: UnderwritingResult;
   aiAnalysis: AiAnalysis;
+  aiReused: boolean;
 } | null> {
   const claim = await getClaimById(id);
   if (!claim) return null;
@@ -395,8 +417,8 @@ export async function underwriteClaimById(
   }
 
   const ruleResult = evaluateContractRules(claim);
-
-  const aiAnalysis = await analyzeClaimWithAi(claim);
+  const aiReused = shouldReuseAiAnalysis(claim.aiAnalysis, options.force);
+  const aiAnalysis = await resolveAiAnalysis(claim, options);
   const combined = combineDecisions(ruleResult.decision, aiAnalysis);
 
   const underwriting = {
@@ -426,5 +448,6 @@ export async function underwriteClaimById(
       reason: combined.reason,
     },
     aiAnalysis,
+    aiReused,
   };
 }

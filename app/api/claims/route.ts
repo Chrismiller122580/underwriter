@@ -5,7 +5,7 @@ import {
   listClaims,
   updateClaimDocuments,
 } from '@/lib/claims-store';
-import { getSessionFromCookies } from '@/lib/auth';
+import { canUnderwrite, getSessionFromCookies } from '@/lib/auth';
 import { sanitizeClaimForPortal } from '@/lib/document-urls';
 import { logger } from '@/lib/logger';
 import {
@@ -62,6 +62,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const session = await getSessionFromCookies();
+  if (!session || !canUnderwrite(session.role)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const ip = getClientIp(request);
   const rateLimit = await checkRateLimit(`submit:${ip}`, 10, 60 * 60 * 1000);
 

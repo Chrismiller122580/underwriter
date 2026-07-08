@@ -13,8 +13,17 @@ import {
   getUnderwritingReadiness,
   type PortalClaim,
 } from '@/lib/claim-portal';
+import type { ClaimRecord } from '@/lib/claims-store';
 import { AiInsights } from './AiInsights';
 import { AnalyzeButton } from './AnalyzeButton';
+
+export type ClaimPatch = {
+  _id: string;
+  status?: string;
+  aiAnalysis?: ClaimRecord['aiAnalysis'];
+  underwriting?: ClaimRecord['underwriting'];
+  updatedAt?: string;
+};
 
 function statusClass(status: string) {
   return `status-pill status-${status}`;
@@ -40,11 +49,11 @@ function recommendationClass(value?: string) {
 
 export function ClaimCard({
   claim,
-  onRefresh,
+  onClaimUpdated,
   defaultExpanded = false,
 }: {
   claim: PortalClaim;
-  onRefresh: () => void;
+  onClaimUpdated: (patch: ClaimPatch) => void;
   defaultExpanded?: boolean;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -290,11 +299,29 @@ export function ClaimCard({
         <div className="claim-action-group">
           <AnalyzeButton
             claimId={claim._id}
-            onComplete={onRefresh}
+            force={Boolean(claim.aiAnalysis)}
+            onComplete={(result) =>
+              onClaimUpdated({
+                _id: claim._id,
+                aiAnalysis: result.aiAnalysis,
+                updatedAt: new Date().toISOString(),
+              })
+            }
             label={claim.aiAnalysis ? 'Refresh AI Scan' : 'Run AI Scan'}
           />
           {readiness.canUnderwrite ? (
-            <UnderwriteButton claimId={claim._id} onComplete={onRefresh} />
+            <UnderwriteButton
+              claimId={claim._id}
+              onComplete={(result) =>
+                onClaimUpdated({
+                  _id: claim._id,
+                  status: result.status,
+                  aiAnalysis: result.aiAnalysis,
+                  underwriting: result.underwriting,
+                  updatedAt: new Date().toISOString(),
+                })
+              }
+            />
           ) : (
             <span className="done-label">
               {readiness.blockers[0] ?? `${claim.status} — underwriting unavailable`}

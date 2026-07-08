@@ -20,16 +20,13 @@ export function LandingPage() {
             Faster, smarter warranty claim intake and review
           </h1>
           <p className="landing-lead">
-            FWCUT helps claimants submit complete requests online and gives your
-            underwriting team AI-assisted tools to review risk, coverage, and
-            documentation — without replacing adjuster judgment.
+            FWCUT gives your underwriting team a secure workspace for claim intake,
+            AI-assisted review of risk and coverage, and consistent documentation
+            checks — without replacing adjuster judgment.
           </p>
 
           <div className="landing-cta-row">
-            <Link href="/submit" className="button landing-cta-primary">
-              Submit a Claim
-            </Link>
-            <Link href="/login" className="button landing-cta-login">
+            <Link href="/login" className="button landing-cta-primary">
               Staff Login
             </Link>
             <button
@@ -60,16 +57,16 @@ export function LandingPage() {
 
           <div className="landing-audience-grid">
             <article className="landing-audience-card">
-              <p className="landing-card-label">For claimants</p>
-              <h3>Submit online in minutes</h3>
+              <p className="landing-card-label">For claim intake</p>
+              <h3>Staff-assisted submission</h3>
               <ul>
-                <li>Enter your policy number to identify your plan type</li>
-                <li>Use screenshot autofill to speed up data entry</li>
-                <li>Attach supporting files when you have them — none required upfront</li>
-                <li>Receive clear next steps if more information is needed</li>
+                <li>Authorized adjusters enter claims on behalf of customers</li>
+                <li>Policy number lookup identifies the contract type automatically</li>
+                <li>Screenshot autofill speeds up data entry from repair orders</li>
+                <li>Supporting files can be attached when available</li>
               </ul>
-              <Link href="/submit" className="landing-inline-link">
-                Start a claim →
+              <Link href="/login?next=/submit" className="landing-inline-link">
+                Sign in to submit →
               </Link>
             </article>
 
@@ -155,12 +152,9 @@ export function LandingPage() {
       <section className="landing-footer-cta">
         <div className="landing-section-inner landing-footer-cta-inner">
           <h2>Ready to get started?</h2>
-          <p>Submit a claim online or sign in to the claims dashboard.</p>
+          <p>Sign in to submit claims, review the queue, and run AI-assisted underwriting.</p>
           <div className="landing-cta-row landing-cta-row-center">
-            <Link href="/submit" className="button">
-              Submit a Claim
-            </Link>
-            <Link href="/login" className="button button-secondary">
+            <Link href="/login" className="button">
               Staff Login
             </Link>
           </div>

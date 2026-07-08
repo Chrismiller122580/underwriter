@@ -5,20 +5,19 @@ import { canManageKnowledge, getSessionFromRequest } from '@/lib/auth';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (
-    (pathname === '/api/claims' && request.method === 'POST') ||
-    pathname === '/api/claims/extract' ||
-    pathname === '/api/claims/lookup-policy'
-  ) {
-    return NextResponse.next();
-  }
-
   const isAdminPage = pathname.startsWith('/admin');
   const isAdminApi = pathname.startsWith('/api/admin');
-  const isProtectedPage = pathname.startsWith('/claims') || isAdminPage;
+  const isProtectedPage =
+    pathname.startsWith('/claims') ||
+    pathname.startsWith('/submit') ||
+    isAdminPage;
   const isProtectedApi =
-    (pathname === '/api/claims' && request.method === 'GET') ||
+    (pathname === '/api/claims' &&
+      (request.method === 'GET' || request.method === 'POST')) ||
     (pathname === '/api/claims/stats' && request.method === 'GET') ||
+    pathname === '/api/claims/extract' ||
+    pathname === '/api/claims/lookup-policy' ||
+    pathname === '/api/upload' ||
     (pathname.match(/^\/api\/claims\/[^/]+\/documents\/[^/]+$/) &&
       request.method === 'GET') ||
     (pathname.match(/^\/api\/claims\/[^/]+\/(underwrite|analyze)$/) &&
@@ -57,10 +56,12 @@ export const config = {
   matcher: [
     '/claims',
     '/claims/:path*',
+    '/submit',
     '/admin',
     '/admin/:path*',
     '/api/claims',
     '/api/claims/:path*',
+    '/api/upload',
     '/api/admin',
     '/api/admin/:path*',
   ],

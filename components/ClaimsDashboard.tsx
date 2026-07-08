@@ -11,7 +11,11 @@ import {
   type ContractFilter,
   type PortalClaim,
 } from '@/lib/claim-portal';
-import { ClaimCard } from './ClaimCard';
+import { ClaimCard, type ClaimPatch } from './ClaimCard';
+import {
+  OnboardingTutorial,
+  useOnboardingTutorial,
+} from './OnboardingTutorial';
 
 const QUEUE_FILTERS: { id: ClaimFilter; label: string; tone?: 'pending' | 'denied' }[] = [
   { id: 'action_needed', label: 'Action needed', tone: 'pending' },
@@ -28,6 +32,7 @@ type ClaimsPage = {
 };
 
 export function ClaimsDashboard() {
+  const tutorial = useOnboardingTutorial();
   const [claims, setClaims] = useState<PortalClaim[]>([]);
   const [stats, setStats] = useState<ClaimPortalStats | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -91,6 +96,18 @@ export function ClaimsDashboard() {
     setLoading(true);
     await Promise.all([loadStats(), loadClaims()]);
   }, [loadClaims, loadStats]);
+
+  const patchClaim = useCallback(
+    (patch: ClaimPatch) => {
+      setClaims((current) =>
+        current.map((claim) =>
+          claim._id === patch._id ? { ...claim, ...patch } : claim
+        )
+      );
+      void loadStats();
+    },
+    [loadStats]
+  );
 
   useEffect(() => {
     void refreshWorkbench();
@@ -184,7 +201,13 @@ export function ClaimsDashboard() {
   }
 
   return (
-    <div className="adjuster-layout">
+    <>
+      <OnboardingTutorial
+        open={tutorial.open}
+        onOpenChange={tutorial.setTutorialOpen}
+        userKey={tutorial.userKey}
+      />
+      <div className="adjuster-layout">
       <aside className="adjuster-sidebar">
         <section className="adjuster-sidebar-section">
           <h2 className="adjuster-sidebar-title">Queue focus</h2>
@@ -360,7 +383,7 @@ export function ClaimsDashboard() {
               <ClaimCard
                 key={claim._id}
                 claim={claim}
-                onRefresh={refreshWorkbench}
+                onClaimUpdated={patchClaim}
                 defaultExpanded={index === 0 && statusFilter === 'action_needed'}
               />
             ))}
@@ -384,6 +407,7 @@ export function ClaimsDashboard() {
         )}
       </div>
     </div>
+    </>
   );
 }
 

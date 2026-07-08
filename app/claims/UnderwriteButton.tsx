@@ -1,16 +1,23 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import type { AiAnalysis } from '@/lib/ai-types';
+import type { ClaimRecord } from '@/lib/claims-store';
+
+export type UnderwriteResult = {
+  status: string;
+  aiAnalysis: AiAnalysis;
+  underwriting: NonNullable<ClaimRecord['underwriting']>;
+  aiReused: boolean;
+};
 
 export function UnderwriteButton({
   claimId,
   onComplete,
 }: {
   claimId: string;
-  onComplete?: () => void;
+  onComplete?: (result: UnderwriteResult) => void;
 }) {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,8 +40,25 @@ export function UnderwriteButton({
         throw new Error(body.error ?? 'Underwriting failed');
       }
 
-      onComplete?.();
-      router.refresh();
+      const data = (await response.json()) as {
+        status: string;
+        aiAnalysis: AiAnalysis;
+        underwriting?: ClaimRecord['underwriting'];
+        reason: string;
+        decision: string;
+        aiReused?: boolean;
+      };
+
+      onComplete?.({
+        status: data.status,
+        aiAnalysis: data.aiAnalysis,
+        underwriting: data.underwriting ?? {
+          decision: data.decision,
+          reason: data.reason,
+          reviewedAt: new Date().toISOString(),
+        },
+        aiReused: Boolean(data.aiReused),
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Underwriting failed');
     } finally {
