@@ -27,6 +27,11 @@ const claimFormSchema = z.object({
   repairEstimate: z.coerce.number().positive(),
   detailedRepairDescription: z.string().min(1),
   repairShopInformation: z.string().min(1),
+  /** FWIS linkage when claim was imported via API (preferred over screenshots). */
+  fwisClaimId: z.string().optional(),
+  fwisContractNumber: z.string().optional(),
+  fwisClaimNumber: z.string().optional(),
+  dataSource: z.enum(['fwis', 'manual', 'screenshot']).optional(),
 });
 
 export type ParsedClaimForm = z.infer<typeof claimFormSchema>;
@@ -120,15 +125,23 @@ export function buildClaimDocument(
     ? 'policy_number'
     : 'manual';
 
+  const dataSource =
+    parsed.dataSource ??
+    (parsed.fwisClaimId || parsed.fwisClaimNumber ? 'fwis' : 'manual');
+
   return {
     policyInformation: {
       policyNumber: parsed.policyNumber,
       contractType,
       contractVariant,
-      contractTypeSource,
+      contractTypeSource:
+        dataSource === 'fwis' ? ('policy_number' as const) : contractTypeSource,
       coverageDetails: parsed.coverageDetails,
       policyEffectiveDate: parsed.policyEffectiveDate,
       policyExpirationDate: parsed.policyExpirationDate,
+      ...(parsed.fwisContractNumber
+        ? { fwisContractNumber: parsed.fwisContractNumber }
+        : {}),
     },
     vehicleInfo: {
       make: parsed.make,
@@ -157,6 +170,14 @@ export function buildClaimDocument(
     },
     claimDetails: {
       description: parsed.descriptionOfIncident,
+      dataSource,
+      ...(parsed.fwisClaimId ? { fwisClaimId: parsed.fwisClaimId } : {}),
+      ...(parsed.fwisClaimNumber
+        ? { fwisClaimNumber: parsed.fwisClaimNumber }
+        : {}),
+      ...(parsed.fwisContractNumber
+        ? { fwisContractNumber: parsed.fwisContractNumber }
+        : {}),
       amount: parsed.repairEstimate,
       documents: Object.values(documentPaths),
       attachedDocuments: documentPaths,

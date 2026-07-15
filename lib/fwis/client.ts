@@ -7,6 +7,7 @@ import type {
   FwisClaimRecord,
   FwisConnectionStatus,
   FwisDecisionPayload,
+  FwisIntakeBundle,
   FwisPolicyRecord,
   FwisRequestResult,
 } from '@/lib/fwis/types';
@@ -14,6 +15,10 @@ import {
   mapFwisClaimPayload,
   mapFwisPolicyPayload,
 } from '@/lib/fwis/mappers';
+import {
+  fwisRecordsToFormImport,
+  type FwisFormImport,
+} from '@/lib/fwis/to-form';
 import { logger } from '@/lib/logger';
 
 function buildAuthHeaders(cfg: FwisConfig): Record<string, string> {
@@ -237,6 +242,140 @@ export async function fetchFwisClaim(
     status: result.status,
     data: mapFwisClaimPayload(result.data, claimId.trim()),
   };
+}
+
+function unwrapClaimPayload(data: unknown, fallbackId: string): FwisClaimRecord {
+  // Search endpoints may return { items: [...] } or [ ... ]
+  if (Array.isArray(data) && data.length > 0) {
+    return mapFwisClaimPayload(data[0], fallbackId);
+  }
+  if (data && typeof data === 'object') {
+    const obj = data as Record<string, unknown>;
+    for (const key of ['items', 'results', 'claims', 'data']) {
+      const arr = obj[key];
+      if (Array.isArray(arr) && arr.length > 0) {
+        return mapFwisClaimPayload(arr[0], fallbackId);
+      }
+    }
+  }
+  return mapFwisClaimPayload(data, fallbackId);
+}
+
+/**
+ * Load claim by human claim number (and optional contract number).
+ * Tries: combined search → claim-by-number → claim-by-id (same token).
+ */
+export async function fetchFwisClaimByNumbers(
+  claimNumber: string,
+  contractNumber?: string
+): Promise<FwisRequestResult<FwisClaimRecord>> {
+  const cfg = getFwisConfig();
+  if (!cfg.enabled || !cfg.apiKey) {
+    return { ok: false, status: 0, error: 'FWIS is not enabled or API key missing' };
+  }
+
+  const claim = claimNumber.trim();
+  const contract = contractNumber?.trim() ?? '';
+  const attempts: string[] = [];
+
+  if (contract) {
+    attempts.push(
+      fillPath(cfg.paths.claimSearch, {
+        contractNumber: contract,
+        claimNumber: claim,
+        policyNumber: contract,
+      })
+    );
+  }
+  attempts.push(fillPath(cfg.paths.claimByNumber, { claimNumber: claim }));
+  attempts.push(fillPath(cfg.paths.claimById, { claimId: claim }));
+
+  let lastError: FwisRequestResult<FwisClaimRecord> = {
+    ok: false,
+    status: 0,
+    error: 'No claim paths configured',
+  };
+
+  for (const path of attempts) {
+    logger.info('FWIS claim lookup attempt', { path, claim, contract });
+    const result = await fwisFetch(path, { method: 'GET' }, cfg);
+    if (result.ok) {
+      return {
+        ok: true,
+        status: result.status,
+        data: unwrapClaimPayload(result.data, claim),
+      };
+    }
+    lastError = result;
+    // Continue on 404; stop on auth errors
+    if (result.status === 401 || result.status === 403) {
+      return result;
+    }
+  }
+
+  return lastError;
+}
+
+/**
+ * Primary intake path: contract (policy) number + claim number → full form package.
+ * Supersedes screenshot autofill when FWIS is connected.
+ */
+export async function importClaimFromFwis(
+  contractNumber: string,
+  claimNumber: string
+): Promise<{
+  bundle: FwisIntakeBundle;
+  form: FwisFormImport | null;
+}> {
+  const contract = contractNumber.trim();
+  const claim = claimNumber.trim();
+  const errors: string[] = [];
+
+  const [policyResult, claimResult] = await Promise.all([
+    fetchFwisPolicy(contract),
+    fetchFwisClaimByNumbers(claim, contract),
+  ]);
+
+  let policy: FwisPolicyRecord | null = null;
+  let claimRec: FwisClaimRecord | null = null;
+
+  if (policyResult.ok) {
+    policy = policyResult.data;
+  } else {
+    errors.push(`Policy/contract: ${policyResult.error}`);
+    if (policyResult.bodyPreview) {
+      errors.push(`Policy response: ${policyResult.bodyPreview.slice(0, 120)}`);
+    }
+  }
+
+  if (claimResult.ok) {
+    claimRec = claimResult.data;
+    // Ensure policy number is set from contract input if missing
+    if (!claimRec.policyNumber) {
+      claimRec = { ...claimRec, policyNumber: contract };
+    }
+  } else {
+    errors.push(`Claim: ${claimResult.error}`);
+    if (claimResult.bodyPreview) {
+      errors.push(`Claim response: ${claimResult.bodyPreview.slice(0, 120)}`);
+    }
+  }
+
+  const bundle: FwisIntakeBundle = {
+    contractNumber: contract,
+    claimNumber: claim,
+    policy,
+    claim: claimRec,
+    loaded: Boolean(policy || claimRec),
+    errors,
+  };
+
+  if (!bundle.loaded) {
+    return { bundle, form: null };
+  }
+
+  const form = fwisRecordsToFormImport(contract, claim, policy, claimRec);
+  return { bundle, form };
 }
 
 export async function pushFwisDecision(

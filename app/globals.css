@@ -1236,6 +1236,43 @@ a {
   max-width: 420px;
 }
 
+.fwis-import-section {
+  border: 1px solid #c7d2fe;
+  border-radius: 12px;
+  padding: 16px 18px;
+  background: linear-gradient(180deg, #eef2ff 0%, transparent 100%);
+  margin-bottom: 8px;
+}
+
+.fwis-import-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fwis-import-warnings {
+  margin: 8px 0 0;
+  padding-left: 1.2rem;
+  font-size: 13px;
+  color: #b45309;
+}
+
+.fwis-source-banner {
+  margin: 0 0 12px;
+}
+
+.fwis-fallback-section {
+  opacity: 0.92;
+  border-top: 1px dashed var(--border, #cbd5e1);
+  padding-top: 16px;
+}
+
+:root[data-theme='dark'] .fwis-import-section,
+html.dark .fwis-import-section {
+  background: linear-gradient(180deg, rgba(79, 70, 229, 0.15) 0%, transparent 100%);
+  border-color: #4338ca;
+}
+
 .claim-details {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

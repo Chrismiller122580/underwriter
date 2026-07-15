@@ -98,56 +98,114 @@ export function mapFwisClaimPayload(
   fallbackClaimId: string
 ): FwisClaimRecord {
   const r = asRecord(payload);
-  const vehicle = asRecord(r.vehicle ?? r.vehicleInfo);
+  const vehicle = asRecord(r.vehicle ?? r.vehicleInfo ?? r.Vehicle);
   const claimant = asRecord(r.claimant ?? r.customer ?? r.Claimant);
-  const repair = asRecord(r.repair ?? r.repairInformation);
+  const repair = asRecord(r.repair ?? r.repairInformation ?? r.Repair);
+  const incident = asRecord(r.incident ?? r.incidentDetails ?? r.Incident);
+
+  const fwisClaimId =
+    str(r.id, r.claimId, r.claim_id, r.ClaimId, r.ClaimID) ?? fallbackClaimId;
 
   return {
-    fwisClaimId:
-      str(r.id, r.claimId, r.claim_id, r.ClaimId) ?? fallbackClaimId,
+    fwisClaimId,
+    claimNumber: str(
+      r.claimNumber,
+      r.claim_number,
+      r.ClaimNumber,
+      r.claimNo,
+      r.number,
+      fwisClaimId
+    ),
     policyNumber: str(
       r.policyNumber,
       r.policy_number,
       r.contractNumber,
-      r.ContractNumber
+      r.ContractNumber,
+      r.contract_number,
+      r.agreementNumber
     ),
     status: str(r.status, r.claimStatus, r.Status),
     claimantName: str(
       r.claimantName,
       claimant.name,
       claimant.fullName,
-      r.customerName
+      r.customerName,
+      r.CustomerName
     ),
     contact: str(
       r.contact,
       r.contactInformation,
       claimant.email,
       claimant.phone,
-      r.email
+      r.email,
+      r.phone
     ),
-    vin: str(r.vin, vehicle.vin),
-    make: str(r.make, vehicle.make),
-    model: str(r.model, vehicle.model),
-    year: num(r.year, vehicle.year),
-    odometer: num(r.odometer, r.odometerReading, vehicle.odometer),
-    dateOfLoss: str(r.dateOfLoss, r.lossDate, r.date_of_loss),
+    relationship: str(
+      r.relationship,
+      r.relationshipToVehicle,
+      claimant.relationship,
+      r.ownerRelationship
+    ),
+    vin: str(r.vin, vehicle.vin, vehicle.VIN),
+    make: str(r.make, vehicle.make, vehicle.Make),
+    model: str(r.model, vehicle.model, vehicle.Model),
+    year: num(r.year, vehicle.year, vehicle.Year),
+    odometer: num(
+      r.odometer,
+      r.odometerReading,
+      r.mileage,
+      vehicle.odometer,
+      vehicle.mileage
+    ),
+    odometerAtEffective: num(
+      r.odometerAtEffective,
+      r.startMiles,
+      r.odometerAtSale,
+      vehicle.odometerAtEffective
+    ),
+    dateOfLoss: str(
+      r.dateOfLoss,
+      r.lossDate,
+      r.date_of_loss,
+      incident.dateOfLoss,
+      incident.date
+    ),
     description: str(
       r.description,
       r.descriptionOfIncident,
-      r.incidentDescription
+      r.incidentDescription,
+      incident.description,
+      r.failureDescription
+    ),
+    location: str(
+      r.location,
+      r.locationOfIncident,
+      incident.location,
+      r.lossLocation
     ),
     repairEstimate: num(
       r.repairEstimate,
       r.estimate,
       repair.estimate,
-      r.claimAmount
+      r.claimAmount,
+      r.amount,
+      repair.amount
     ),
     repairDescription: str(
       r.repairDescription,
       r.detailedRepairDescription,
-      repair.description
+      repair.description,
+      r.componentDescription,
+      r.partsDescription
     ),
-    shop: str(r.shop, r.repairShop, r.repairShopInformation, repair.shop),
+    shop: str(
+      r.shop,
+      r.repairShop,
+      r.repairShopInformation,
+      repair.shop,
+      r.facilityName,
+      r.dealerName
+    ),
     raw: payload,
   };
 }

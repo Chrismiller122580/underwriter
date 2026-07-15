@@ -15,6 +15,7 @@ import {
   MAX_FILE_SIZE_BYTES,
 } from '@/lib/parse-claim-form';
 import { FileInput } from './FileInput';
+import { FwisClaimImport, type FwisImportResult } from './FwisClaimImport';
 import { PolicyLookup } from './PolicyLookup';
 import { ScreenshotAutofill } from './ScreenshotAutofill';
 
@@ -85,11 +86,19 @@ function validateForm(
   return errors;
 }
 
+type FwisMeta = {
+  fwisClaimId: string | null;
+  fwisContractNumber: string;
+  fwisClaimNumber: string;
+  dataSource: 'fwis' | 'manual' | 'screenshot';
+};
+
 function buildFormData(
   values: FormValues,
   files: Record<string, File | null>,
   contractType: ContractType | 'unknown',
-  contractVariant: 'standard' | 'manufacturer_extension'
+  contractVariant: 'standard' | 'manufacturer_extension',
+  fwisMeta: FwisMeta | null
 ): FormData {
   const formData = new FormData();
   for (const field of EXTRACTABLE_FIELDS) {
@@ -97,6 +106,14 @@ function buildFormData(
   }
   formData.append('contractType', contractType);
   formData.append('contractVariant', contractVariant);
+  if (fwisMeta?.fwisClaimId) formData.append('fwisClaimId', fwisMeta.fwisClaimId);
+  if (fwisMeta?.fwisContractNumber) {
+    formData.append('fwisContractNumber', fwisMeta.fwisContractNumber);
+  }
+  if (fwisMeta?.fwisClaimNumber) {
+    formData.append('fwisClaimNumber', fwisMeta.fwisClaimNumber);
+  }
+  if (fwisMeta?.dataSource) formData.append('dataSource', fwisMeta.dataSource);
   for (const field of FILE_FIELDS) {
     const file = files[field];
     if (file) formData.append(field, file);
@@ -109,6 +126,7 @@ async function submitWithBlobUpload(
   files: Record<string, File | null>,
   contractType: ContractType | 'unknown',
   contractVariant: 'standard' | 'manufacturer_extension',
+  fwisMeta: FwisMeta | null,
   onProgress: (percent: number) => void
 ): Promise<{ ok: boolean; status: number; body: unknown }> {
   const fieldsWithFiles = FILE_FIELDS.filter((field) => files[field]);
@@ -143,6 +161,10 @@ async function submitWithBlobUpload(
       contractType,
       contractVariant,
       documents,
+      fwisClaimId: fwisMeta?.fwisClaimId ?? undefined,
+      fwisContractNumber: fwisMeta?.fwisContractNumber ?? undefined,
+      fwisClaimNumber: fwisMeta?.fwisClaimNumber ?? undefined,
+      dataSource: fwisMeta?.dataSource ?? 'manual',
     }),
   });
 
@@ -197,6 +219,8 @@ export function ClaimForm() {
   const [files, setFiles] = useState<Record<string, File | null>>(
     Object.fromEntries(FILE_FIELDS.map((f) => [f, null]))
   );
+  const [fwisMeta, setFwisMeta] = useState<FwisMeta | null>(null);
+  const [showScreenshotFallback, setShowScreenshotFallback] = useState(false);
 
   function updateField(name: ExtractableField, value: string) {
     setValues((prev) => ({ ...prev, [name]: value }));
@@ -207,10 +231,44 @@ export function ClaimForm() {
     });
   }
 
+  function handleFwisImport(result: FwisImportResult) {
+    setValues((prev) => {
+      const next = { ...prev };
+      for (const [key, value] of Object.entries(result.fields)) {
+        if (value) next[key as ExtractableField] = value;
+      }
+      return next;
+    });
+    setContractType(result.contractType);
+    setContractVariant(result.contractVariant);
+    setAutofilled(new Set(result.fieldsFound));
+    setFwisMeta({
+      fwisClaimId: result.fwisClaimId,
+      fwisContractNumber: result.fwisContractNumber,
+      fwisClaimNumber: result.fwisClaimNumber,
+      dataSource: 'fwis',
+    });
+    setErrors({});
+    setMessage({
+      type: 'success',
+      text: `FWIS data loaded (${result.fieldsFound.length} fields). Review, attach optional docs, and submit.`,
+    });
+  }
+
   function handleAutofill(
     fields: Partial<Record<ExtractableField, string>>,
     meta: { fieldsFound: string[] }
   ) {
+    setFwisMeta((prev) =>
+      prev
+        ? { ...prev, dataSource: 'screenshot' }
+        : {
+            fwisClaimId: null,
+            fwisContractNumber: values.policyNumber,
+            fwisClaimNumber: '',
+            dataSource: 'screenshot',
+          }
+    );
     setValues((prev) => {
       const next = { ...prev };
       for (const [key, value] of Object.entries(fields)) {
@@ -288,16 +346,24 @@ export function ClaimForm() {
     setProgress(0);
 
     try {
+      const meta: FwisMeta = fwisMeta ?? {
+        fwisClaimId: null,
+        fwisContractNumber: values.policyNumber,
+        fwisClaimNumber: '',
+        dataSource: 'manual',
+      };
+
       const result = USE_BLOB_UPLOAD
         ? await submitWithBlobUpload(
             values,
             files,
             contractType,
             contractVariant,
+            meta,
             setProgress
           )
         : await submitWithProgress(
-            buildFormData(values, files, contractType, contractVariant),
+            buildFormData(values, files, contractType, contractVariant, meta),
             setProgress
           );
 
@@ -335,19 +401,31 @@ export function ClaimForm() {
 
   return (
     <form className="claim-form" onSubmit={handleSubmit} noValidate>
-      <PolicyLookup
-        policyNumber={values.policyNumber}
-        contractType={contractType}
-        onPolicyNumberChange={(v) => updateField('policyNumber', v)}
-        onContractTypeChange={setContractType}
-        onLookupResult={handleLookupResult}
-        disabled={submitting}
-      />
+      <FwisClaimImport disabled={submitting} onImported={handleFwisImport} />
 
-      <ScreenshotAutofill onExtracted={handleAutofill} disabled={submitting} />
+      {fwisMeta?.dataSource === 'fwis' && (
+        <p className="form-success fwis-source-banner">
+          Data source: <strong>FWIS API</strong>
+          {fwisMeta.fwisClaimNumber
+            ? ` · Claim ${fwisMeta.fwisClaimNumber}`
+            : ''}
+          {fwisMeta.fwisContractNumber
+            ? ` · Contract ${fwisMeta.fwisContractNumber}`
+            : ''}
+          . Screenshot autofill is not needed for this claim.
+        </p>
+      )}
 
       <section className="form-section">
         <h2>Policy Information</h2>
+        <PolicyLookup
+          policyNumber={values.policyNumber}
+          contractType={contractType}
+          onPolicyNumberChange={(v) => updateField('policyNumber', v)}
+          onContractTypeChange={setContractType}
+          onLookupResult={handleLookupResult}
+          disabled={submitting}
+        />
         <div className="form-grid">
           <FormField label="Coverage Details" name="coverageDetails" value={values.coverageDetails} onChange={updateField} error={errors.coverageDetails} autofilled={autofilled.has('coverageDetails')} />
           <FormField label="Policy Effective Date" name="policyEffectiveDate" type="date" value={values.policyEffectiveDate} onChange={updateField} error={errors.policyEffectiveDate} autofilled={autofilled.has('policyEffectiveDate')} />
@@ -402,10 +480,8 @@ export function ClaimForm() {
       <section className="form-section">
         <h2>Supporting Documentation (optional)</h2>
         <p className="form-hint">
-          Attach any supporting files you have — none are required at submission.
-          Each file must be 10 MB or smaller. Contract type is identified from the
-          policy number. If more documentation is needed, AI underwriting will
-          request it and check against Freedom Warranty guidelines.
+          Prefer FWIS import above. Attach extra files only if needed — none are
+          required at submission. Each file must be 10 MB or smaller.
         </p>
         <div className="form-grid">
           {FILE_FIELDS.map((field) => (
@@ -419,6 +495,30 @@ export function ClaimForm() {
             />
           ))}
         </div>
+      </section>
+
+      <section className="form-section fwis-fallback-section">
+        <button
+          type="button"
+          className="link-button"
+          onClick={() => setShowScreenshotFallback((v) => !v)}
+        >
+          {showScreenshotFallback
+            ? 'Hide legacy screenshot autofill'
+            : 'Legacy fallback: portal screenshot autofill (only if FWIS unavailable)'}
+        </button>
+        {showScreenshotFallback && (
+          <>
+            <p className="form-hint">
+              Screenshots are a fallback when the FWIS API cannot load the claim.
+              Prefer contract + claim number import above.
+            </p>
+            <ScreenshotAutofill
+              onExtracted={handleAutofill}
+              disabled={submitting}
+            />
+          </>
+        )}
       </section>
 
       {submitting && (

@@ -28,7 +28,7 @@ Vehicle warranty claims intake, document upload, and automated policy underwriti
 | **Multi-user auth** | Named staff users (seeded from env); shared password fallback |
 | **Document OCR** | Image attachments read via Grok vision into AI context |
 | **Claim status portal** | Public `/status` lookup by tracking code + last name |
-| **FWIS integration** | Client + health check for `fwis.freedomwarranty.com` (API key ready) |
+| **FWIS intake** | Primary path: contract # + claim # import from FWIS (screenshots are fallback only) |
 | **AI underwriting** | Grok risk scoring, fraud detection, smart recommendations |
 | **Auto analysis** | Background AI scan on every new claim submission |
 

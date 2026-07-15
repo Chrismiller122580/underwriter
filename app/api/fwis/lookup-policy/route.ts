@@ -34,9 +34,9 @@ export async function POST(request: Request) {
 
     if (!isFwisConfigured() || !getFwisConfig().enabled) {
       return NextResponse.json({
+        ...local,
         source: 'local',
         fwis: null,
-        ...local,
       });
     }
 
@@ -49,16 +49,15 @@ export async function POST(request: Request) {
         status: fwis.status,
       });
       return NextResponse.json({
+        ...local,
         source: 'local',
         fwisError: fwis.error,
-        fwisStatus: fwis.status,
-        ...local,
+        fwisHttpStatus: fwis.status,
       });
     }
 
     const p = fwis.data;
     return NextResponse.json({
-      source: 'fwis',
       valid: local.valid || Boolean(p.policyNumber),
       contractType:
         local.contractType !== 'unknown'
@@ -70,7 +69,7 @@ export async function POST(request: Request) {
       prefix: local.prefix,
       accountId: local.accountId,
       confidence: Math.max(local.confidence, p.policyNumber ? 0.9 : 0),
-      source: 'fwis' as const,
+      source: 'fwis',
       coverageDetails:
         p.coverageDetails ?? local.coverageDetails ?? undefined,
       vehicle: {

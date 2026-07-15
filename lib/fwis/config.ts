@@ -22,7 +22,15 @@ export type FwisConfig = {
   paths: {
     health: string;
     policyByNumber: string;
+    /** GET claim by FWIS internal id */
     claimById: string;
+    /** GET claim by human claim number */
+    claimByNumber: string;
+    /**
+     * Combined lookup — supports {contractNumber} and {claimNumber}
+     * e.g. /api/v1/claims?contractNumber={contractNumber}&claimNumber={claimNumber}
+     */
+    claimSearch: string;
     pushDecision: string;
   };
   /** When true, underwrite/manual decide will attempt to push back to FWIS */
@@ -69,13 +77,18 @@ export function getFwisConfig(): FwisConfig {
       60_000
     ),
     paths: {
-      health:
-        process.env.FWIS_PATH_HEALTH?.trim() || '/api/health',
+      health: process.env.FWIS_PATH_HEALTH?.trim() || '/api/health',
       policyByNumber:
         process.env.FWIS_PATH_POLICY?.trim() ||
         '/api/v1/policies/{policyNumber}',
       claimById:
         process.env.FWIS_PATH_CLAIM?.trim() || '/api/v1/claims/{claimId}',
+      claimByNumber:
+        process.env.FWIS_PATH_CLAIM_NUMBER?.trim() ||
+        '/api/v1/claims/by-number/{claimNumber}',
+      claimSearch:
+        process.env.FWIS_PATH_CLAIM_SEARCH?.trim() ||
+        '/api/v1/claims?contractNumber={contractNumber}&claimNumber={claimNumber}',
       pushDecision:
         process.env.FWIS_PATH_DECISION?.trim() ||
         '/api/v1/claims/{claimId}/decisions',

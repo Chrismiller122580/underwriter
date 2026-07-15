@@ -174,6 +174,17 @@ export function ClaimCard({
             {claim.publicToken ?? '—'}
           </span>
         </div>
+        {(claim.claimDetails.fwisClaimNumber ||
+          claim.claimDetails.dataSource === 'fwis') && (
+          <div className="claim-fact">
+            <span className="claim-fact-label">FWIS</span>
+            <span className="claim-fact-value">
+              {claim.claimDetails.fwisClaimNumber ??
+                claim.claimDetails.fwisClaimId ??
+                'Imported'}
+            </span>
+          </div>
+        )}
         <div className="claim-fact">
           <span className="claim-fact-label">Policy</span>
           <span className="claim-fact-value">{claim.policyInformation.policyNumber}</span>

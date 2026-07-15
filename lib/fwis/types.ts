@@ -37,21 +37,37 @@ export type FwisPolicyRecord = {
 /** Claim record pulled from FWIS */
 export type FwisClaimRecord = {
   fwisClaimId: string;
+  /** Human-facing claim number (may equal fwisClaimId) */
+  claimNumber?: string | null;
   policyNumber?: string | null;
   status?: string | null;
   claimantName?: string | null;
   contact?: string | null;
+  relationship?: string | null;
   vin?: string | null;
   make?: string | null;
   model?: string | null;
   year?: number | null;
   odometer?: number | null;
+  odometerAtEffective?: number | null;
   dateOfLoss?: string | null;
   description?: string | null;
+  location?: string | null;
   repairEstimate?: number | null;
   repairDescription?: string | null;
   shop?: string | null;
   raw?: unknown;
+};
+
+/** Full import package for claim intake (supersedes screenshot autofill). */
+export type FwisIntakeBundle = {
+  contractNumber: string;
+  claimNumber: string;
+  policy: FwisPolicyRecord | null;
+  claim: FwisClaimRecord | null;
+  /** True when at least one remote payload was returned */
+  loaded: boolean;
+  errors: string[];
 };
 
 export type FwisDecisionPayload = {

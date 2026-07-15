@@ -34,6 +34,7 @@ export type ClaimRecord = {
     coverageDetails: string;
     policyEffectiveDate: string;
     policyExpirationDate: string;
+    fwisContractNumber?: string;
   };
   vehicleInfo: {
     make: string;
@@ -63,6 +64,11 @@ export type ClaimRecord = {
     amount: number;
     documents: string[];
     attachedDocuments?: Record<string, string>;
+    /** How intake data was obtained — fwis is preferred over screenshot. */
+    dataSource?: 'fwis' | 'manual' | 'screenshot';
+    fwisClaimId?: string;
+    fwisClaimNumber?: string;
+    fwisContractNumber?: string;
   };
   status: string;
   underwriting?: {
