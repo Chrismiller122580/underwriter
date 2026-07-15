@@ -62,5 +62,10 @@ export async function ensureSchema(): Promise<void> {
     WHERE ai_analysis IS NULL
   `;
 
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_claims_policy_number
+    ON claims ((lower(policy_information->>'policyNumber')))
+  `;
+
   schemaReady = true;
 }

@@ -10,6 +10,16 @@ import {
   FILE_FIELDS,
 } from '@/lib/parse-claim-form';
 import { buildUnderwritingSystemPrompt } from '@/lib/knowledge-prompt';
+import {
+  formatPolicyHistoryForPrompt,
+  type PolicyHistoryContext,
+} from '@/lib/policy-history';
+import { checkAutoApproveGuardrails } from '@/lib/underwriting-guardrails';
+import { evaluateComponentCoverage } from '@/lib/contracts/components';
+
+export type AnalyzeClaimOptions = {
+  policyHistory?: PolicyHistoryContext | null;
+};
 
 function buildDocumentStatus(claim: ClaimRecord) {
   const attached = claim.claimDetails.attachedDocuments ?? {};
@@ -20,16 +30,27 @@ function buildDocumentStatus(claim: ClaimRecord) {
       url: attached[field],
     })
   );
-  const missing = FILE_FIELDS.filter((field) => !attached[field]).map((field) => ({
-    field,
-    label: FILE_FIELD_LABELS[field],
-  }));
+  const missing = FILE_FIELDS.filter((field) => !attached[field]).map(
+    (field) => ({
+      field,
+      label: FILE_FIELD_LABELS[field],
+    })
+  );
 
   return { provided, missing, documentCount: provided.length };
 }
 
-function buildClaimContext(claim: ClaimRecord): string {
+function buildClaimContext(
+  claim: ClaimRecord,
+  policyHistory?: PolicyHistoryContext | null
+): string {
   const documents = buildDocumentStatus(claim);
+  const contractType = claim.policyInformation.contractType ?? 'unknown';
+  const componentCoverage = evaluateComponentCoverage(
+    contractType,
+    claim.repairInformation.detailedRepairDescription,
+    claim.incidentDetails.descriptionOfIncident
+  );
 
   return JSON.stringify(
     {
@@ -41,13 +62,22 @@ function buildClaimContext(claim: ClaimRecord): string {
       amount: claim.claimDetails.amount,
       documents,
       submittedAt: claim.createdAt,
+      componentCoverage: {
+        status: componentCoverage.status,
+        matchedLabel: componentCoverage.matchedLabel,
+        flags: componentCoverage.flags,
+      },
+      policyHistory: formatPolicyHistoryForPrompt(policyHistory),
     },
     null,
     2
   );
 }
 
-export async function analyzeClaimWithAi(claim: ClaimRecord): Promise<AiAnalysis> {
+export async function analyzeClaimWithAi(
+  claim: ClaimRecord,
+  options: AnalyzeClaimOptions = {}
+): Promise<AiAnalysis> {
   const xai = getXaiProvider();
 
   if (!xai) {
@@ -61,7 +91,8 @@ export async function analyzeClaimWithAi(claim: ClaimRecord): Promise<AiAnalysis
 
   try {
     const contractType = claim.policyInformation.contractType ?? 'unknown';
-    const contractVariant = claim.policyInformation.contractVariant ?? 'standard';
+    const contractVariant =
+      claim.policyInformation.contractVariant ?? 'standard';
 
     const systemPrompt = await buildUnderwritingSystemPrompt(
       contractType,
@@ -77,8 +108,14 @@ export async function analyzeClaimWithAi(claim: ClaimRecord): Promise<AiAnalysis
 Contract context:
 ${buildContractContext(contractType, contractVariant)}
 
-Claim data:
-${buildClaimContext(claim)}`,
+Claim data (includes component coverage pre-check and policy aggregate history when available):
+${buildClaimContext(claim, options.policyHistory)}
+
+Pay special attention to:
+- Whether the component is covered for this contract type
+- Aggregate limit of liability vs prior approved amounts on the same policy
+- Prior similar repairs (possible re-claim of already replaced components)
+- Missing information that should be requested rather than denied`,
     });
 
     return {
@@ -125,7 +162,9 @@ export function combineDecisions(
     ai.guidelineConflicts.length > 0 ||
     ai.recommendation === 'review'
   ) {
-    const parts = [`AI flags for review (risk ${ai.riskScore}/10): ${ai.reasoning}`];
+    const parts = [
+      `AI flags for review (risk ${ai.riskScore}/10): ${ai.reasoning}`,
+    ];
     if (ai.informationRequests.length > 0) {
       parts.push(`Information needed: ${ai.informationRequests.join('; ')}`);
     }
@@ -135,6 +174,15 @@ export function combineDecisions(
     return {
       decision: 'under_review',
       reason: parts.join(' '),
+    };
+  }
+
+  // Rules passed + AI approve — apply auto-approve safety guardrails
+  const guardrails = checkAutoApproveGuardrails(ai);
+  if (!guardrails.allowed) {
+    return {
+      decision: 'under_review',
+      reason: `Auto-approve blocked: ${guardrails.reasons.join(' · ')}. AI said: ${ai.reasoning}`,
     };
   }
 

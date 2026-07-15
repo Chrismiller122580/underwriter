@@ -1426,6 +1426,22 @@ a {
   color: #b45309;
 }
 
+.claim-signal-component.component-covered {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.claim-signal-component.component-not_covered,
+.claim-signal-component.component-excluded {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.claim-signal-component.component-unclear {
+  background: #fef3c7;
+  color: #b45309;
+}
+
 .claim-workbench-card.claim-needs-action {
   border-left: 4px solid #4a3fbf;
   box-shadow: 0 4px 14px rgba(74, 63, 191, 0.06);

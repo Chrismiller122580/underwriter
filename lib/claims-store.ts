@@ -7,8 +7,16 @@ import {
   combineDecisions,
 } from '@/lib/ai-underwrite';
 import type { AiAnalysis } from '@/lib/ai-types';
-import { evaluateContractRules } from '@/lib/contract-rules';
+import {
+  evaluateContractRules,
+  type ContractRuleResult,
+} from '@/lib/contract-rules';
 import type { ContractTypeOrUnknown, ContractVariant } from '@/lib/contracts/types';
+import {
+  buildPolicyHistoryContext,
+  toRelatedClaimSummary,
+  type PolicyHistoryContext,
+} from '@/lib/policy-history';
 import type { UnderwritingResult } from '@/lib/underwrite';
 
 export type ClaimRecord = {
@@ -348,6 +356,58 @@ export async function getClaimById(id: string): Promise<ClaimRecord | null> {
   return mapRow(rows[0]);
 }
 
+/**
+ * Load peer claims on the same policy number (case-insensitive),
+ * optionally excluding the claim currently being underwritten.
+ */
+export async function listClaimsByPolicyNumber(
+  policyNumber: string,
+  options: { excludeClaimId?: string; limit?: number } = {}
+): Promise<ClaimRecord[]> {
+  await ensureSchema();
+  const sql = getSql();
+  const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
+  const normalized = policyNumber.trim();
+  if (!normalized) return [];
+
+  let rows: ClaimRow[];
+
+  if (options.excludeClaimId) {
+    rows = (await sql`
+      SELECT * FROM claims
+      WHERE lower(policy_information->>'policyNumber') = lower(${normalized})
+        AND id <> ${options.excludeClaimId}::uuid
+      ORDER BY created_at DESC
+      LIMIT ${limit}
+    `) as ClaimRow[];
+  } else {
+    rows = (await sql`
+      SELECT * FROM claims
+      WHERE lower(policy_information->>'policyNumber') = lower(${normalized})
+      ORDER BY created_at DESC
+      LIMIT ${limit}
+    `) as ClaimRow[];
+  }
+
+  return rows.map(mapRow);
+}
+
+export async function getPolicyHistoryForClaim(
+  claim: ClaimRecord
+): Promise<PolicyHistoryContext> {
+  const peers = await listClaimsByPolicyNumber(
+    claim.policyInformation.policyNumber,
+    { excludeClaimId: claim._id }
+  );
+
+  return buildPolicyHistoryContext(
+    claim.policyInformation.policyNumber,
+    claim.policyInformation.contractType,
+    claim.repairInformation.repairEstimate,
+    peers.map(toRelatedClaimSummary)
+  );
+}
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -361,12 +421,13 @@ export type AiAnalysisOptions = {
 
 async function resolveAiAnalysis(
   claim: ClaimRecord,
-  options: AiAnalysisOptions = {}
+  options: AiAnalysisOptions = {},
+  policyHistory?: PolicyHistoryContext | null
 ): Promise<AiAnalysis> {
   if (shouldReuseAiAnalysis(claim.aiAnalysis, options.force)) {
     return claim.aiAnalysis;
   }
-  return analyzeClaimWithAi(claim);
+  return analyzeClaimWithAi(claim, { policyHistory });
 }
 
 export async function runAiAnalysis(
@@ -380,7 +441,8 @@ export async function runAiAnalysis(
     return { claim, analysis: claim.aiAnalysis, reused: true };
   }
 
-  const analysis = await analyzeClaimWithAi(claim);
+  const policyHistory = await getPolicyHistoryForClaim(claim);
+  const analysis = await analyzeClaimWithAi(claim, { policyHistory });
   const updated = await saveAiAnalysis(id, analysis);
 
   return { claim: updated, analysis, reused: false };
@@ -408,6 +470,8 @@ export async function underwriteClaimById(
   result: UnderwritingResult;
   aiAnalysis: AiAnalysis;
   aiReused: boolean;
+  ruleResult: ContractRuleResult;
+  policyHistory: PolicyHistoryContext;
 } | null> {
   const claim = await getClaimById(id);
   if (!claim) return null;
@@ -416,9 +480,10 @@ export async function underwriteClaimById(
     throw new ClaimNotUnderwritableError(claim);
   }
 
-  const ruleResult = evaluateContractRules(claim);
+  const policyHistory = await getPolicyHistoryForClaim(claim);
+  const ruleResult = evaluateContractRules(claim, { policyHistory });
   const aiReused = shouldReuseAiAnalysis(claim.aiAnalysis, options.force);
-  const aiAnalysis = await resolveAiAnalysis(claim, options);
+  const aiAnalysis = await resolveAiAnalysis(claim, options, policyHistory);
   const combined = combineDecisions(ruleResult.decision, aiAnalysis);
 
   const underwriting = {
@@ -449,5 +514,7 @@ export async function underwriteClaimById(
     },
     aiAnalysis,
     aiReused,
+    ruleResult,
+    policyHistory,
   };
 }

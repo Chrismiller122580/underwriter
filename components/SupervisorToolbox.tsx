@@ -50,6 +50,16 @@ type OverviewData = {
     prefixes: { prefix: string; type: string; coverage: string }[];
     waitingPeriods: { types: string[]; days: number; miles: number }[];
     documentTypes: string[];
+    componentCatalog?: {
+      classicCovered: string[];
+      vitalDriveCovered: string[];
+      statedNotCovered: string[];
+      completeExclusions: string[];
+    };
+    autoApproveGuardrails?: {
+      maxRisk: number;
+      minConfidence: number;
+    };
   };
 };
 
@@ -520,6 +530,61 @@ function ContractsPanel({ overview }: { overview: OverviewData | null }) {
           </ul>
         </div>
       </div>
+
+      {overview.contracts.autoApproveGuardrails && (
+        <div className="toolbox-card">
+          <h3>Auto-approve guardrails</h3>
+          <p className="form-hint">
+            Final <strong>approved</strong> only when rules pass, AI recommends approve, and all
+            gates below clear. Otherwise claim stays under review.
+          </p>
+          <ul>
+            <li>
+              Max risk score:{' '}
+              <strong>{overview.contracts.autoApproveGuardrails.maxRisk}/10</strong>
+            </li>
+            <li>
+              Min confidence:{' '}
+              <strong>{overview.contracts.autoApproveGuardrails.minConfidence}%</strong>
+            </li>
+            <li>No fraud indicators, information requests, or guideline conflicts</li>
+          </ul>
+        </div>
+      )}
+
+      {overview.contracts.componentCatalog && (
+        <div className="toolbox-split">
+          <div className="toolbox-card">
+            <h3>Classic covered (keyword engine)</h3>
+            <ul>
+              {overview.contracts.componentCatalog.classicCovered.map((label) => (
+                <li key={label}>{label}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="toolbox-card">
+            <h3>Vital / Drive covered</h3>
+            <ul>
+              {overview.contracts.componentCatalog.vitalDriveCovered.map((label) => (
+                <li key={label}>{label}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="toolbox-card">
+            <h3>Stated non-covered / Complete exclusions</h3>
+            <ul>
+              {overview.contracts.componentCatalog.statedNotCovered
+                .slice(0, 8)
+                .map((label) => (
+                  <li key={label}>{label}</li>
+                ))}
+            </ul>
+            <p className="form-hint">
+              Unclear free-text holds for review; clear non-covered keywords hard-deny.
+            </p>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

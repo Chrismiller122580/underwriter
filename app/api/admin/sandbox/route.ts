@@ -3,11 +3,16 @@ import { z } from 'zod';
 import { analyzeClaimWithAi } from '@/lib/ai-underwrite';
 import { evaluateContractRules } from '@/lib/contract-rules';
 import { canManageKnowledge, getSessionFromCookies } from '@/lib/auth';
-import { getClaimById, isValidClaimId } from '@/lib/claims-store';
+import {
+  getClaimById,
+  getPolicyHistoryForClaim,
+  isValidClaimId,
+} from '@/lib/claims-store';
 import {
   buildSandboxClaim,
   sandboxScenarioSchema,
 } from '@/lib/sandbox-claim';
+import { buildPolicyHistoryContext } from '@/lib/policy-history';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -49,9 +54,19 @@ export async function POST(request: Request) {
       claim = buildSandboxClaim(scenario);
     }
 
+    const policyHistory =
+      body.mode === 'claim'
+        ? await getPolicyHistoryForClaim(claim)
+        : buildPolicyHistoryContext(
+            claim.policyInformation.policyNumber,
+            claim.policyInformation.contractType,
+            claim.repairInformation.repairEstimate,
+            []
+          );
+
     const [ruleResult, aiAnalysis] = await Promise.all([
-      Promise.resolve(evaluateContractRules(claim)),
-      analyzeClaimWithAi(claim),
+      Promise.resolve(evaluateContractRules(claim, { policyHistory })),
+      analyzeClaimWithAi(claim, { policyHistory }),
     ]);
 
     return NextResponse.json({
@@ -59,6 +74,14 @@ export async function POST(request: Request) {
       contractType: claim.policyInformation.contractType,
       ruleResult,
       aiAnalysis,
+      policyHistory: {
+        approvedAggregate: policyHistory.approvedAggregate,
+        openAggregate: policyHistory.openAggregate,
+        maxAggregate: policyHistory.maxAggregate,
+        remainingAfterApproved: policyHistory.remainingAfterApproved,
+        wouldExceedAggregate: policyHistory.wouldExceedAggregate,
+        relatedClaimCount: policyHistory.relatedClaims.length,
+      },
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

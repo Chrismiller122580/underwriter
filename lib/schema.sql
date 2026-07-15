@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS claims (
 
 CREATE INDEX IF NOT EXISTS idx_claims_status ON claims(status);
 CREATE INDEX IF NOT EXISTS idx_claims_created_at ON claims(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_claims_policy_number
+  ON claims ((lower(policy_information->>'policyNumber')));
 
 CREATE TABLE IF NOT EXISTS rate_limits (
   id TEXT PRIMARY KEY,

@@ -4,9 +4,14 @@ import {
   listClaims,
 } from '@/lib/claims-store';
 import { getTextModelId, getXaiApiKey } from '@/lib/ai-client';
+import { getComponentCatalogSummary } from '@/lib/contracts/components';
 import { getKnowledgeStats } from '@/lib/knowledge-store';
 import { ensureSchema, getSql } from '@/lib/db';
 import type { ContractType } from '@/lib/contracts/types';
+import {
+  AUTO_APPROVE_MAX_RISK,
+  AUTO_APPROVE_MIN_CONFIDENCE,
+} from '@/lib/underwriting-guardrails';
 
 export type SupervisorOverview = {
   ai: {
@@ -155,5 +160,10 @@ export function getContractReference() {
       'Inspection Reports',
       'Service History',
     ],
+    componentCatalog: getComponentCatalogSummary(),
+    autoApproveGuardrails: {
+      maxRisk: AUTO_APPROVE_MAX_RISK,
+      minConfidence: AUTO_APPROVE_MIN_CONFIDENCE,
+    },
   };
 }

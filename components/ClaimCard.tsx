@@ -143,6 +143,17 @@ export function ClaimCard({
         <span className={`claim-signal claim-signal-rule rule-${rulePreview.decision}`}>
           Rules: {rulePreview.decision}
         </span>
+        {rulePreview.componentCoverage && (
+          <span
+            className={`claim-signal claim-signal-component component-${rulePreview.componentCoverage.status}`}
+            title={rulePreview.componentCoverage.flags.join(' · ')}
+          >
+            Component: {rulePreview.componentCoverage.status.replace('_', ' ')}
+            {rulePreview.componentCoverage.matchedLabel
+              ? ` · ${rulePreview.componentCoverage.matchedLabel}`
+              : ''}
+          </span>
+        )}
       </div>
 
       <div className="claim-fact-strip">
@@ -204,6 +215,21 @@ export function ClaimCard({
                   Denial category: {rulePreview.denialCategory.replace('_', ' ')}
                 </p>
               )}
+              {rulePreview.componentCoverage && (
+                <p className="claim-panel-meta">
+                  Component pre-check:{' '}
+                  <strong>
+                    {rulePreview.componentCoverage.status.replace('_', ' ')}
+                  </strong>
+                  {rulePreview.componentCoverage.matchedLabel
+                    ? ` (${rulePreview.componentCoverage.matchedLabel})`
+                    : ''}
+                </p>
+              )}
+              <p className="claim-panel-meta">
+                Aggregate LOL is evaluated at underwrite time from prior claims on
+                this policy number.
+              </p>
             </section>
 
             <section className="claim-panel">

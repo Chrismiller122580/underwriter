@@ -24,9 +24,10 @@ AI underwriting is REQUIRED before any claim can be approved.`,
     );
   }
 
-  parts.push(`Recommend "deny" for clear policy violations (invalid contract, waiting period, non-covered component, maintenance failure).
-Recommend "review" for ambiguous cases, large claims, inspection triggers, or when required information is missing.
-Recommend "approve" only when claim clearly meets contract terms and guidelines.
+  parts.push(`Recommend "deny" for clear policy violations (invalid contract, waiting period, non-covered component, maintenance failure, aggregate LOL exceeded).
+Recommend "review" for ambiguous cases, large claims, inspection triggers, possible prior similar repairs, or when required information is missing.
+Recommend "approve" only when claim clearly meets contract terms and guidelines with low residual risk.
+System auto-approve only applies when risk is low and confidence is high; prefer "review" when unsure.
 
 Supporting documents are OPTIONAL at submission. When documents or facts are missing:
 - List specific items in informationRequests (e.g. maintenance records to verify oil-change schedule).

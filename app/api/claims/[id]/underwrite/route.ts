@@ -35,12 +35,15 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
     }
 
-    const { claim, result, aiAnalysis } = outcome;
+    const { claim, result, aiAnalysis, ruleResult, policyHistory } = outcome;
 
     logger.info('Claim underwritten', {
       claimId: id,
       decision: result.decision,
       role: session.role,
+      aiReused: outcome.aiReused,
+      componentStatus: ruleResult.componentCoverage?.status,
+      approvedAggregate: policyHistory.approvedAggregate,
     });
 
     return NextResponse.json({
@@ -51,6 +54,23 @@ export async function POST(request: Request, context: RouteContext) {
       underwriting: claim.underwriting,
       aiAnalysis,
       aiReused: outcome.aiReused,
+      ruleResult: {
+        decision: ruleResult.decision,
+        reason: ruleResult.reason,
+        flags: ruleResult.flags,
+        denialCategory: ruleResult.denialCategory,
+        componentCoverage: ruleResult.componentCoverage,
+      },
+      policyHistory: {
+        policyNumber: policyHistory.policyNumber,
+        approvedAggregate: policyHistory.approvedAggregate,
+        openAggregate: policyHistory.openAggregate,
+        maxAggregate: policyHistory.maxAggregate,
+        remainingAfterApproved: policyHistory.remainingAfterApproved,
+        wouldExceedAggregate: policyHistory.wouldExceedAggregate,
+        relatedClaimCount: policyHistory.relatedClaims.length,
+        priorApprovedRepairs: policyHistory.priorApprovedRepairs,
+      },
     });
   } catch (error) {
     if (error instanceof ClaimNotUnderwritableError) {
