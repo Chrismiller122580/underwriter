@@ -17,6 +17,7 @@ import {
   toRelatedClaimSummary,
   type PolicyHistoryContext,
 } from '@/lib/policy-history';
+import { safeAppendClaimEvent } from '@/lib/claim-events';
 import {
   buildInfoRequest,
   type InfoRequestRecord,
@@ -68,6 +69,9 @@ export type ClaimRecord = {
     decision?: string;
     reason?: string;
     reviewedAt?: string;
+    source?: 'ai' | 'manual' | 'rules';
+    decidedBy?: string;
+    decidedByRole?: string;
   };
   aiAnalysis?: AiAnalysis;
   infoRequest?: InfoRequestRecord;
@@ -310,7 +314,18 @@ export async function createClaim(
     RETURNING *
   `) as ClaimRow[];
 
-  return mapRow(rows[0]);
+  const created = mapRow(rows[0]);
+  await safeAppendClaimEvent({
+    claimId: created._id,
+    eventType: 'submitted',
+    summary: `Claim submitted for ${created.claimantInformation.name} · $${created.claimDetails.amount.toLocaleString()}`,
+    toStatus: created.status,
+    detail: {
+      policyNumber: created.policyInformation.policyNumber,
+      contractType: created.policyInformation.contractType,
+    },
+  });
+  return created;
 }
 
 export async function updateClaimDocuments(
@@ -427,6 +442,8 @@ export function isValidClaimId(id: string): boolean {
 
 export type AiAnalysisOptions = {
   force?: boolean;
+  actorEmail?: string;
+  actorRole?: string;
 };
 
 async function resolveAiAnalysis(
@@ -455,6 +472,20 @@ export async function runAiAnalysis(
   const analysis = await analyzeClaimWithAi(claim, { policyHistory });
   const updated = await saveAiAnalysis(id, analysis);
 
+  await safeAppendClaimEvent({
+    claimId: id,
+    eventType: 'analyzed',
+    summary: `AI analysis · risk ${analysis.riskScore}/10 · ${analysis.recommendation}`,
+    fromStatus: claim.status,
+    toStatus: updated.status,
+    detail: {
+      riskScore: analysis.riskScore,
+      recommendation: analysis.recommendation,
+      confidence: analysis.confidence,
+      model: analysis.model,
+    },
+  });
+
   return { claim: updated, analysis, reused: false };
 }
 
@@ -481,6 +512,7 @@ export async function requestInfoOnClaim(
   }
 
   const infoRequest = buildInfoRequest(input);
+  const fromStatus = claim.status;
   const sql = getSql();
   const rows = (await sql`
     UPDATE claims
@@ -491,11 +523,22 @@ export async function requestInfoOnClaim(
     RETURNING *
   `) as ClaimRow[];
 
-  return mapRow(rows[0]);
+  const updated = mapRow(rows[0]);
+  await safeAppendClaimEvent({
+    claimId: id,
+    eventType: 'info_requested',
+    summary: `Info requested (${infoRequest.items.length} item${infoRequest.items.length === 1 ? '' : 's'})`,
+    actorEmail: input.requestedBy,
+    fromStatus,
+    toStatus: 'needs_info',
+    detail: { items: infoRequest.items, note: infoRequest.note },
+  });
+  return updated;
 }
 
 export async function clearInfoRequestOnClaim(
-  id: string
+  id: string,
+  actor?: { email?: string; role?: string }
 ): Promise<ClaimRecord | null> {
   const claim = await getClaimById(id);
   if (!claim) return null;
@@ -513,7 +556,89 @@ export async function clearInfoRequestOnClaim(
     RETURNING *
   `) as ClaimRow[];
 
-  return mapRow(rows[0]);
+  const updated = mapRow(rows[0]);
+  await safeAppendClaimEvent({
+    claimId: id,
+    eventType: 'info_cleared',
+    summary: 'Information request cleared — ready for continued underwriting',
+    actorEmail: actor?.email,
+    actorRole: actor?.role,
+    fromStatus: claim.status,
+    toStatus: nextStatus,
+  });
+  return updated;
+}
+
+export type ManualDecisionInput = {
+  decision: 'approved' | 'denied' | 'under_review';
+  reason: string;
+  decidedBy: string;
+  decidedByRole: string;
+};
+
+export async function manualDecisionOnClaim(
+  id: string,
+  input: ManualDecisionInput
+): Promise<ClaimRecord | null> {
+  const claim = await getClaimById(id);
+  if (!claim) return null;
+
+  const reason = input.reason.trim();
+  if (reason.length < 10) {
+    throw new Error('Manual decision reason must be at least 10 characters');
+  }
+
+  const underwriting = {
+    decision:
+      input.decision === 'under_review' ? 'pending' : input.decision,
+    reason: reason.slice(0, 2000),
+    reviewedAt: new Date().toISOString(),
+    source: 'manual' as const,
+    decidedBy: input.decidedBy,
+    decidedByRole: input.decidedByRole,
+  };
+
+  const sql = getSql();
+  const clearInfo =
+    input.decision === 'approved' || input.decision === 'denied';
+
+  const rows = (
+    clearInfo
+      ? await sql`
+          UPDATE claims
+          SET status = ${input.decision},
+              underwriting = ${JSON.stringify(underwriting)}::jsonb,
+              info_request = NULL,
+              updated_at = NOW()
+          WHERE id = ${id}::uuid
+          RETURNING *
+        `
+      : await sql`
+          UPDATE claims
+          SET status = ${input.decision},
+              underwriting = ${JSON.stringify(underwriting)}::jsonb,
+              updated_at = NOW()
+          WHERE id = ${id}::uuid
+          RETURNING *
+        `
+  ) as ClaimRow[];
+
+  const updated = mapRow(rows[0]);
+  await safeAppendClaimEvent({
+    claimId: id,
+    eventType: 'manual_decision',
+    summary: `Manual ${input.decision.replace('_', ' ')}: ${reason.slice(0, 160)}`,
+    actorEmail: input.decidedBy,
+    actorRole: input.decidedByRole,
+    fromStatus: claim.status,
+    toStatus: input.decision,
+    detail: {
+      source: 'manual',
+      reason,
+      previousUnderwriting: claim.underwriting ?? null,
+    },
+  });
+  return updated;
 }
 
 export class ClaimNotUnderwritableError extends Error {
@@ -556,8 +681,10 @@ export async function underwriteClaimById(
     decision: combined.decision === 'under_review' ? 'pending' : combined.decision,
     reason: combined.reason,
     reviewedAt: new Date().toISOString(),
+    source: 'ai' as const,
   };
 
+  const fromStatus = claim.status;
   const sql = getSql();
   const rows = (await sql`
     UPDATE claims
@@ -569,8 +696,27 @@ export async function underwriteClaimById(
     RETURNING *
   `) as ClaimRow[];
 
+  const updated = mapRow(rows[0]);
+  await safeAppendClaimEvent({
+    claimId: id,
+    eventType: 'underwritten',
+    summary: `AI underwrite → ${combined.decision.replace('_', ' ')} (rules: ${ruleResult.decision}, AI: ${aiAnalysis.recommendation}${aiReused ? ', AI reused' : ''})`,
+    actorEmail: options.actorEmail,
+    actorRole: options.actorRole,
+    fromStatus,
+    toStatus: combined.decision,
+    detail: {
+      source: 'ai',
+      ruleDecision: ruleResult.decision,
+      aiRecommendation: aiAnalysis.recommendation,
+      riskScore: aiAnalysis.riskScore,
+      reason: combined.reason,
+      aiReused,
+    },
+  });
+
   return {
-    claim: mapRow(rows[0]),
+    claim: updated,
     result: {
       decision:
         combined.decision === 'under_review'

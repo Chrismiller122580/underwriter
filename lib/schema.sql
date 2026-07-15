@@ -20,6 +20,9 @@ CREATE INDEX IF NOT EXISTS idx_claims_policy_number
 -- Optional: open adjuster information request checklist
 -- ALTER TABLE claims ADD COLUMN IF NOT EXISTS info_request JSONB;
 
+-- Claim activity / decision audit trail (created by ensureSchema at runtime)
+-- CREATE TABLE IF NOT EXISTS claim_events (...);
+
 CREATE TABLE IF NOT EXISTS rate_limits (
   id TEXT PRIMARY KEY,
   hits INT NOT NULL DEFAULT 1,

@@ -30,7 +30,11 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   try {
-    const outcome = await underwriteClaimById(id, { force });
+    const outcome = await underwriteClaimById(id, {
+      force,
+      actorEmail: session.email,
+      actorRole: session.role,
+    });
     if (!outcome) {
       return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
     }

@@ -2,6 +2,10 @@ import { evaluateComponentCoverage } from '@/lib/contracts/components';
 import { getContractDefinition } from '@/lib/contracts/registry';
 import type { ClaimRecord } from '@/lib/claims-store';
 import type { ContractTypeOrUnknown } from '@/lib/contracts/types';
+import {
+  evaluateLaborRateRules,
+  type LaborRateCheckResult,
+} from '@/lib/labor-rate-rules';
 import type { PolicyHistoryContext } from '@/lib/policy-history';
 import type { UnderwritingResult } from '@/lib/underwrite';
 
@@ -15,6 +19,7 @@ export type ContractRuleResult = UnderwritingResult & {
     | 'limit_exceeded'
     | null;
   componentCoverage?: ReturnType<typeof evaluateComponentCoverage>;
+  laborRateCheck?: LaborRateCheckResult;
   policyHistory?: PolicyHistoryContext | null;
 };
 
@@ -268,6 +273,35 @@ export function evaluateContractRules(
     }
   }
 
+  const laborRateCheck = evaluateLaborRateRules({
+    make: claim.vehicleInfo.make,
+    year: claim.vehicleInfo.year,
+    repairDescription: claim.repairInformation.detailedRepairDescription,
+    repairShopInformation: claim.repairInformation.repairShopInformation,
+    incidentDescription: claim.incidentDetails.descriptionOfIncident,
+  });
+  // Only surface actionable labor flags (parsed numbers or review holds)
+  const laborFlags = laborRateCheck.flags.filter(
+    (f) =>
+      f.startsWith('Parsed') ||
+      f.includes('exceeds') ||
+      f.includes('above Regular')
+  );
+  flags.push(...laborFlags);
+
+  if (laborRateCheck.needsReview) {
+    return {
+      decision: 'pending',
+      reason:
+        'Labor rate or diagnostic time exceeds guideline caps — adjuster review required.',
+      flags,
+      denialCategory: null,
+      componentCoverage,
+      laborRateCheck,
+      policyHistory,
+    };
+  }
+
   const repairDesc =
     claim.repairInformation.detailedRepairDescription.toLowerCase();
   const majorComponents = ['engine', 'transmission', 'turbo', 'timing chain'];
@@ -280,6 +314,7 @@ export function evaluateContractRules(
       flags,
       denialCategory: null,
       componentCoverage,
+      laborRateCheck,
       policyHistory,
     };
   }
@@ -300,6 +335,7 @@ export function evaluateContractRules(
     flags,
     denialCategory: null,
     componentCoverage,
+    laborRateCheck,
     policyHistory,
   };
 }

@@ -21,9 +21,11 @@ export async function middleware(request: NextRequest) {
     (pathname.match(/^\/api\/claims\/[^/]+\/documents\/[^/]+$/) &&
       request.method === 'GET') ||
     (pathname.match(
-      /^\/api\/claims\/[^/]+\/(underwrite|analyze|request-info|clear-info-request)$/
+      /^\/api\/claims\/[^/]+\/(underwrite|analyze|request-info|clear-info-request|decide)$/
     ) &&
       request.method === 'POST') ||
+    (pathname.match(/^\/api\/claims\/[^/]+\/events$/) &&
+      request.method === 'GET') ||
     isAdminApi;
 
   if (!isProtectedPage && !isProtectedApi) {

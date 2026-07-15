@@ -16,6 +16,8 @@ import {
 import type { ClaimRecord } from '@/lib/claims-store';
 import { AiInsights } from './AiInsights';
 import { AnalyzeButton } from './AnalyzeButton';
+import { ClaimTimeline } from './ClaimTimeline';
+import { ManualDecisionButton } from './ManualDecisionButton';
 import { RequestInfoButton } from './RequestInfoButton';
 
 export type ClaimPatch = {
@@ -59,6 +61,7 @@ export function ClaimCard({
   defaultExpanded?: boolean;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [timelineKey, setTimelineKey] = useState(0);
   const priority = claimPriorityScore(claim);
   const missingDocs = getMissingDocuments(claim);
   const attachedDocs = getAttachedDocuments(claim);
@@ -234,6 +237,20 @@ export function ClaimCard({
                     : ''}
                 </p>
               )}
+              {rulePreview.laborRateCheck && (
+                <p className="claim-panel-meta">
+                  Labor class {rulePreview.laborRateCheck.vehicleClass}
+                  {rulePreview.laborRateCheck.laborRate != null
+                    ? ` · $${rulePreview.laborRateCheck.laborRate}/hr parsed`
+                    : ' · no labor rate in text'}
+                  {rulePreview.laborRateCheck.diagnosticHours != null
+                    ? ` · diag ${rulePreview.laborRateCheck.diagnosticHours}h`
+                    : ''}
+                  {rulePreview.laborRateCheck.needsReview
+                    ? ' · holds for review'
+                    : ''}
+                </p>
+              )}
               <p className="claim-panel-meta">
                 Aggregate LOL is evaluated at underwrite time from prior claims on
                 this policy number.
@@ -331,15 +348,25 @@ export function ClaimCard({
 
           {claim.underwriting?.reason && (
             <div className="underwriting-decision-box">
-              <strong>Last underwriting decision</strong>
+              <strong>
+                Last decision
+                {claim.underwriting.source
+                  ? ` (${claim.underwriting.source})`
+                  : ''}
+              </strong>
               <p>{claim.underwriting.reason}</p>
               {claim.underwriting.reviewedAt && (
                 <span className="claim-panel-meta">
                   Reviewed {formatDate(claim.underwriting.reviewedAt)}
+                  {claim.underwriting.decidedBy
+                    ? ` · ${claim.underwriting.decidedBy}`
+                    : ''}
                 </span>
               )}
             </div>
           )}
+
+          <ClaimTimeline claimId={claim._id} refreshKey={timelineKey} />
         </div>
       )}
 
@@ -356,13 +383,14 @@ export function ClaimCard({
           <AnalyzeButton
             claimId={claim._id}
             force={Boolean(claim.aiAnalysis)}
-            onComplete={(result) =>
+            onComplete={(result) => {
               onClaimUpdated({
                 _id: claim._id,
                 aiAnalysis: result.aiAnalysis,
                 updatedAt: new Date().toISOString(),
-              })
-            }
+              });
+              setTimelineKey((k) => k + 1);
+            }}
             label={claim.aiAnalysis ? 'Refresh AI Scan' : 'Run AI Scan'}
           />
           {(claim.status === 'pending' ||
@@ -372,34 +400,50 @@ export function ClaimCard({
               claimId={claim._id}
               suggestedItems={claim.aiAnalysis?.informationRequests ?? []}
               existingRequest={claim.infoRequest}
-              onComplete={(result) =>
+              onComplete={(result) => {
                 onClaimUpdated({
                   _id: claim._id,
                   status: result.status,
                   infoRequest: result.infoRequest,
                   updatedAt: result.updatedAt ?? new Date().toISOString(),
-                })
-              }
+                });
+                setTimelineKey((k) => k + 1);
+              }}
             />
           )}
           {readiness.canUnderwrite ? (
             <UnderwriteButton
               claimId={claim._id}
-              onComplete={(result) =>
+              onComplete={(result) => {
                 onClaimUpdated({
                   _id: claim._id,
                   status: result.status,
                   aiAnalysis: result.aiAnalysis,
                   underwriting: result.underwriting,
                   updatedAt: new Date().toISOString(),
-                })
-              }
+                });
+                setTimelineKey((k) => k + 1);
+              }}
             />
           ) : (
             <span className="done-label">
               {readiness.blockers[0] ?? `${claim.status} — underwriting unavailable`}
             </span>
           )}
+          <ManualDecisionButton
+            claimId={claim._id}
+            currentStatus={claim.status}
+            onComplete={(result) => {
+              onClaimUpdated({
+                _id: claim._id,
+                status: result.status,
+                underwriting: result.underwriting,
+                infoRequest: result.infoRequest,
+                updatedAt: result.updatedAt ?? new Date().toISOString(),
+              });
+              setTimelineKey((k) => k + 1);
+            }}
+          />
         </div>
       </div>
     </article>

@@ -163,6 +163,23 @@ describe('evaluateContractRules', () => {
     expect(result.reason).toMatch(/Aggregate/i);
   });
 
+  it('holds when labor rate exceeds guideline caps', () => {
+    const result = evaluateContractRules(
+      makeClaim({
+        repairInformation: {
+          repairEstimate: 1500,
+          detailedRepairDescription:
+            'Alternator replacement, labor rate $150/hr',
+          repairShopInformation: 'Test Shop',
+        },
+      })
+    );
+
+    expect(result.decision).toBe('pending');
+    expect(result.laborRateCheck?.needsReview).toBe(true);
+    expect(result.reason).toMatch(/Labor rate/i);
+  });
+
   it('flags possible prior similar repairs for review', () => {
     const result = evaluateContractRules(
       makeClaim({

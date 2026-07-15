@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
 import { canUnderwrite, getSessionFromCookies } from '@/lib/auth';
-import {
-  clearInfoRequestOnClaim,
-  isValidClaimId,
-} from '@/lib/claims-store';
+import { listClaimEvents } from '@/lib/claim-events';
+import { getClaimById, isValidClaimId } from '@/lib/claims-store';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +10,7 @@ type RouteContext = {
   params: { id: string };
 };
 
-export async function POST(_request: Request, context: RouteContext) {
+export async function GET(_request: Request, context: RouteContext) {
   const { id } = context.params;
 
   const session = await getSessionFromCookies();
@@ -25,33 +23,20 @@ export async function POST(_request: Request, context: RouteContext) {
   }
 
   try {
-    const claim = await clearInfoRequestOnClaim(id, {
-      email: session.email,
-      role: session.role,
-    });
+    const claim = await getClaimById(id);
     if (!claim) {
       return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
     }
 
-    logger.info('Info request cleared', {
-      claimId: id,
-      status: claim.status,
-      role: session.role,
-    });
-
-    return NextResponse.json({
-      id: claim._id,
-      status: claim.status,
-      infoRequest: claim.infoRequest ?? null,
-      updatedAt: claim.updatedAt,
-    });
+    const events = await listClaimEvents(id);
+    return NextResponse.json({ id, events });
   } catch (error) {
-    logger.error('Clear info request failed', {
+    logger.error('List claim events failed', {
       claimId: id,
       error: error instanceof Error ? error.message : 'unknown',
     });
     return NextResponse.json(
-      { error: 'Failed to clear information request' },
+      { error: 'Failed to load claim history' },
       { status: 500 }
     );
   }

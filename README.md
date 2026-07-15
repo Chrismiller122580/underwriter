@@ -22,6 +22,9 @@ Vehicle warranty claims intake, document upload, and automated policy underwriti
 | **Auto-approve guardrails** | Final approve only when AI risk ≤ 4, confidence ≥ 80%, no fraud/info gaps |
 | **Document reading** | Extracts text from attached PDFs/text into AI underwriting context |
 | **Request info** | Adjuster checklist → `needs_info` status; clear when received |
+| **Manual decision** | Approve / deny / review with required reason + audit trail |
+| **Activity history** | Claim timeline of submit, AI, underwrite, info, manual decisions |
+| **Labor rate rules** | Parse $/hr and diagnostic hours; hold when over class caps |
 | **AI underwriting** | Grok risk scoring, fraud detection, smart recommendations |
 | **Auto analysis** | Background AI scan on every new claim submission |
 
