@@ -100,12 +100,16 @@ export function ClaimsDashboard() {
   const patchClaim = useCallback(
     (patch: ClaimPatch) => {
       setClaims((current) =>
-        current.map((claim) => {
+        current.map((claim): PortalClaim => {
           if (claim._id !== patch._id) return claim;
-          const next = { ...claim, ...patch };
-          if (patch.infoRequest === null) {
-            delete next.infoRequest;
-          }
+          const next: PortalClaim = {
+            ...claim,
+            ...patch,
+            infoRequest:
+              patch.infoRequest === null
+                ? undefined
+                : (patch.infoRequest ?? claim.infoRequest),
+          };
           return next;
         })
       );
