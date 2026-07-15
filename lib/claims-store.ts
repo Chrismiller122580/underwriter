@@ -673,6 +673,25 @@ export async function manualDecisionOnClaim(
       previousUnderwriting: claim.underwriting ?? null,
     },
   });
+
+  // Optional FWIS decision sync (no-op unless FWIS_PUSH_DECISIONS=true)
+  try {
+    const { getFwisConfig, pushFwisDecision } = await import('@/lib/fwis');
+    if (getFwisConfig().pushDecisions) {
+      await pushFwisDecision({
+        localClaimId: id,
+        trackingCode: updated.publicToken,
+        decision: input.decision,
+        reason,
+        source: 'manual',
+        decidedBy: input.decidedBy,
+        decidedAt: underwriting.reviewedAt,
+      });
+    }
+  } catch {
+    // Never block local decision on FWIS outage
+  }
+
   return updated;
 }
 

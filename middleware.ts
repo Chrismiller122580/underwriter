@@ -26,6 +26,8 @@ export async function middleware(request: NextRequest) {
       request.method === 'POST') ||
     (pathname.match(/^\/api\/claims\/[^/]+\/events$/) &&
       request.method === 'GET') ||
+    (pathname.startsWith('/api/fwis') &&
+      (request.method === 'GET' || request.method === 'POST')) ||
     isAdminApi;
 
   if (!isProtectedPage && !isProtectedApi) {
@@ -68,5 +70,7 @@ export const config = {
     '/api/upload',
     '/api/admin',
     '/api/admin/:path*',
+    '/api/fwis',
+    '/api/fwis/:path*',
   ],
 };

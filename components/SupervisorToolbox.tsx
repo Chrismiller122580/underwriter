@@ -208,6 +208,46 @@ function OverviewPanel({
   onOpenKnowledge: () => void;
 }) {
   const [seeding, setSeeding] = useState(false);
+  const [fwisChecking, setFwisChecking] = useState(false);
+  const [fwisStatus, setFwisStatus] = useState<{
+    message: string;
+    configured: boolean;
+    reachable: boolean | null;
+  } | null>(null);
+
+  async function checkFwis() {
+    setFwisChecking(true);
+    try {
+      const res = await fetch('/api/admin/fwis/health');
+      const data = (await res.json()) as {
+        message?: string;
+        configured?: boolean;
+        reachable?: boolean | null;
+        error?: string;
+      };
+      if (!res.ok) {
+        setFwisStatus({
+          message: data.error ?? 'Health check failed',
+          configured: false,
+          reachable: false,
+        });
+      } else {
+        setFwisStatus({
+          message: data.message ?? 'OK',
+          configured: Boolean(data.configured),
+          reachable: data.reachable ?? null,
+        });
+      }
+    } catch {
+      setFwisStatus({
+        message: 'Could not reach health endpoint',
+        configured: false,
+        reachable: false,
+      });
+    } finally {
+      setFwisChecking(false);
+    }
+  }
 
   if (loading || !overview) {
     return <p className="form-hint">Loading command center…</p>;
@@ -226,6 +266,14 @@ function OverviewPanel({
         <div className="toolbox-header-actions">
           <button type="button" className="button button-secondary" onClick={onRefresh}>
             Refresh
+          </button>
+          <button
+            type="button"
+            className="button button-secondary"
+            disabled={fwisChecking}
+            onClick={() => void checkFwis()}
+          >
+            {fwisChecking ? 'Checking FWIS…' : 'Test FWIS connection'}
           </button>
           <button
             type="button"
@@ -251,6 +299,29 @@ function OverviewPanel({
           value={overview.ai.enabled ? 'Online' : 'Heuristic fallback'}
           tone={overview.ai.enabled ? 'good' : 'warn'}
           detail={`Model ${overview.ai.model}`}
+        />
+        <StatusCard
+          title="FWIS (Freedom)"
+          value={
+            fwisStatus
+              ? fwisStatus.reachable
+                ? 'Reachable'
+                : fwisStatus.configured
+                  ? 'Key set'
+                  : 'Not configured'
+              : 'Not tested'
+          }
+          tone={
+            fwisStatus?.reachable
+              ? 'good'
+              : fwisStatus?.configured
+                ? 'warn'
+                : undefined
+          }
+          detail={
+            fwisStatus?.message ??
+            'Add FWIS_API_KEY, then click Test FWIS connection'
+          }
         />
         <StatusCard
           title="Knowledge base"

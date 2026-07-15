@@ -28,6 +28,7 @@ Vehicle warranty claims intake, document upload, and automated policy underwriti
 | **Multi-user auth** | Named staff users (seeded from env); shared password fallback |
 | **Document OCR** | Image attachments read via Grok vision into AI context |
 | **Claim status portal** | Public `/status` lookup by tracking code + last name |
+| **FWIS integration** | Client + health check for `fwis.freedomwarranty.com` (API key ready) |
 | **AI underwriting** | Grok risk scoring, fraud detection, smart recommendations |
 | **Auto analysis** | Background AI scan on every new claim submission |
 
@@ -70,6 +71,10 @@ npm run dev
 | `GROK_API_KEY` | Grok API key from [console.x.ai](https://console.x.ai) | Yes (prod) |
 | `AI_MODEL` | Text model (default `grok-3-mini`) | No |
 | `AI_VISION_MODEL` | Vision model for screenshot autofill (default `grok-3`) | No |
+| `FWIS_API_KEY` | Freedom Warranty FWIS API key | No (until live) |
+| `FWIS_BASE_URL` | Default `https://fwis.freedomwarranty.com` | No |
+| `FWIS_AUTH_STYLE` | `bearer` (default), `api_key_header`, or `raw_authorization` | No |
+| `FWIS_PUSH_DECISIONS` | `true` to push manual decisions back to FWIS | No |
 
 `POSTGRES_URL` and `BLOB_READ_WRITE_TOKEN` are set automatically by Vercel Storage.
 
