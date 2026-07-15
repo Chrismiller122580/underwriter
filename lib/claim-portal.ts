@@ -41,6 +41,8 @@ export function claimNeedsAction(claim: PortalClaim): boolean {
   return (
     claim.status === 'pending' ||
     claim.status === 'under_review' ||
+    claim.status === 'needs_info' ||
+    Boolean(claim.infoRequest) ||
     !claim.aiAnalysis ||
     (claim.aiAnalysis.informationRequests?.length ?? 0) > 0 ||
     (claim.aiAnalysis.guidelineConflicts?.length ?? 0) > 0
@@ -51,6 +53,7 @@ export function claimPriorityScore(claim: PortalClaim): number {
   let score = 0;
   if (claim.status === 'pending') score += 20;
   if (claim.status === 'under_review') score += 18;
+  if (claim.status === 'needs_info' || claim.infoRequest) score += 28;
   if (!claim.aiAnalysis) score += 15;
   if ((claim.aiAnalysis?.informationRequests?.length ?? 0) > 0) score += 25;
   if ((claim.aiAnalysis?.guidelineConflicts?.length ?? 0) > 0) score += 20;
@@ -77,13 +80,19 @@ export function filterClaims(
       case 'action_needed':
         return claimNeedsAction(claim);
       case 'needs_info':
-        return (claim.aiAnalysis?.informationRequests?.length ?? 0) > 0;
+        return (
+          claim.status === 'needs_info' ||
+          Boolean(claim.infoRequest) ||
+          (claim.aiAnalysis?.informationRequests?.length ?? 0) > 0
+        );
       case 'guideline_flags':
         return (claim.aiAnalysis?.guidelineConflicts?.length ?? 0) > 0;
       case 'high_risk':
         return (claim.aiAnalysis?.riskScore ?? 0) >= 7;
       case 'under_review':
-        return claim.status === 'under_review';
+        return (
+          claim.status === 'under_review' || claim.status === 'needs_info'
+        );
       case 'no_ai':
         return !claim.aiAnalysis;
       default:
@@ -156,7 +165,11 @@ export function getUnderwritingReadiness(claim: PortalClaim): UnderwritingReadin
   const blockers: string[] = [];
   const warnings: string[] = [];
 
-  if (claim.status !== 'pending' && claim.status !== 'under_review') {
+  if (
+    claim.status !== 'pending' &&
+    claim.status !== 'under_review' &&
+    claim.status !== 'needs_info'
+  ) {
     return {
       canUnderwrite: false,
       blockers: [`Claim is ${claim.status.replace('_', ' ')}`],
@@ -177,9 +190,15 @@ export function getUnderwritingReadiness(claim: PortalClaim): UnderwritingReadin
     warnings.push(`Contract rules pending: ${rulePreview.reason}`);
   }
 
+  if (claim.infoRequest?.items?.length) {
+    warnings.push(
+      `Open info request (${claim.infoRequest.items.length} item(s))`
+    );
+  }
+
   if ((claim.aiAnalysis?.informationRequests?.length ?? 0) > 0) {
     warnings.push(
-      `${claim.aiAnalysis!.informationRequests!.length} information request(s) outstanding`
+      `${claim.aiAnalysis!.informationRequests!.length} AI information request(s) suggested`
     );
   }
 
@@ -202,11 +221,16 @@ export function getUnderwritingReadiness(claim: PortalClaim): UnderwritingReadin
   if (!claim.aiAnalysis) {
     nextAction = 'Run AI Scan to assess risk, coverage fit, and documentation gaps';
     tone = 'blocked';
+  } else if (claim.infoRequest?.items?.length) {
+    nextAction =
+      'Info requested from claimant — clear the request when received, then underwrite';
+    tone = 'review';
   } else if ((claim.aiAnalysis.guidelineConflicts?.length ?? 0) > 0) {
     nextAction = 'Review guideline conflicts, then underwrite or request more info';
     tone = 'review';
   } else if ((claim.aiAnalysis.informationRequests?.length ?? 0) > 0) {
-    nextAction = 'Request missing information from claimant before final decision';
+    nextAction =
+      'Request missing information from claimant (use Request Info) before final decision';
     tone = 'review';
   } else if (claim.aiAnalysis.recommendation === 'review' || (claim.aiAnalysis.riskScore ?? 0) >= 7) {
     nextAction = 'Manual review recommended — verify AI reasoning before underwriting';

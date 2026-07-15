@@ -20,7 +20,9 @@ export async function middleware(request: NextRequest) {
     pathname === '/api/upload' ||
     (pathname.match(/^\/api\/claims\/[^/]+\/documents\/[^/]+$/) &&
       request.method === 'GET') ||
-    (pathname.match(/^\/api\/claims\/[^/]+\/(underwrite|analyze)$/) &&
+    (pathname.match(
+      /^\/api\/claims\/[^/]+\/(underwrite|analyze|request-info|clear-info-request)$/
+    ) &&
       request.method === 'POST') ||
     isAdminApi;
 

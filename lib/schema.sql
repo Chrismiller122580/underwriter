@@ -17,6 +17,9 @@ CREATE INDEX IF NOT EXISTS idx_claims_created_at ON claims(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_claims_policy_number
   ON claims ((lower(policy_information->>'policyNumber')));
 
+-- Optional: open adjuster information request checklist
+-- ALTER TABLE claims ADD COLUMN IF NOT EXISTS info_request JSONB;
+
 CREATE TABLE IF NOT EXISTS rate_limits (
   id TEXT PRIMARY KEY,
   hits INT NOT NULL DEFAULT 1,

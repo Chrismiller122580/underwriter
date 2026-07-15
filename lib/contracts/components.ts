@@ -1,9 +1,15 @@
-import type { ContractType, ContractTypeOrUnknown } from './types';
+import type {
+  ContractType,
+  ContractTypeOrUnknown,
+  ContractVariant,
+} from './types';
 
 /**
- * Keyword-based component coverage for Freedom Warranty plan families.
- * Matching is intentionally conservative: unclear free-text never hard-denies
- * solely for missing a keyword — only clear non-covered / excluded hits deny.
+ * Keyword-based component coverage derived from Freedom Warranty Section 2
+ * language in contracts/classic.html, vital.html, drive.html, complete.html.
+ *
+ * Matching is conservative: unclear free-text never hard-denies solely for
+ * missing a keyword — only clear non-covered / excluded hits deny.
  */
 
 export type ComponentMatchStatus =
@@ -26,10 +32,10 @@ type ComponentEntry = {
   keywords: string[];
 };
 
-/** Items almost never covered under stated warranty plans (maintenance / wear). */
+/** Shared stated-plan non-covered / maintenance & wear (Section 2(b) style). */
 const STATED_NOT_COVERED: ComponentEntry[] = [
   {
-    label: 'Brake pads / shoes / rotors (wear)',
+    label: 'Brake wear items',
     keywords: [
       'brake pad',
       'brake pads',
@@ -37,24 +43,41 @@ const STATED_NOT_COVERED: ComponentEntry[] = [
       'brake shoes',
       'brake rotor',
       'brake rotors',
+      'brake drum',
+      'brake drums',
       'disc brake',
       'drum brake',
     ],
   },
   {
-    label: 'Tires / wheels',
-    keywords: ['tire', 'tires', 'wheel balance', 'alignment only'],
+    label: 'Tires / wheels / TPMS',
+    keywords: [
+      'tire',
+      'tires',
+      'wheel balance',
+      'wheel balancing',
+      'alignment only',
+      'wheel alignment',
+      'tire pressure sensor',
+      'tpms',
+    ],
   },
   {
-    label: 'Battery / battery cables',
-    keywords: ['battery replacement', 'car battery', 'battery cables'],
+    label: 'Battery (12V / hybrid cell)',
+    keywords: [
+      'battery replacement',
+      'car battery',
+      'battery cables',
+      'hybrid battery',
+      'hybrid cell',
+    ],
   },
   {
     label: 'Wiper blades / washer',
-    keywords: ['wiper blade', 'wiper blades', 'windshield washer'],
+    keywords: ['wiper blade', 'wiper blades', 'windshield washer fluid'],
   },
   {
-    label: 'Filters / fluids / tune-up',
+    label: 'Filters / fluids / tune-up / software',
     keywords: [
       'oil change',
       'oil filter',
@@ -62,26 +85,52 @@ const STATED_NOT_COVERED: ComponentEntry[] = [
       'cabin filter',
       'fuel filter',
       'spark plug',
+      'spark plugs',
+      'glow plug',
       'tune-up',
+      'tune up',
       'coolant flush',
+      'fluid flush',
+      'software update',
+      'recalibration',
     ],
   },
   {
-    label: 'Clutch wear items',
-    keywords: ['clutch disc', 'clutch plate', 'throw out bearing'],
+    label: 'Manual clutch wear items',
+    keywords: [
+      'clutch disc',
+      'clutch plate',
+      'clutch assembly',
+      'pressure plate',
+      'throw out bearing',
+      'throw-out bearing',
+      'friction disc',
+    ],
   },
   {
-    label: 'Exhaust muffler / pipes (wear)',
-    keywords: ['muffler', 'tailpipe', 'exhaust pipe'],
+    label: 'Exhaust / emissions wear',
+    keywords: [
+      'muffler',
+      'tailpipe',
+      'tail pipe',
+      'exhaust pipe',
+      'catalytic converter',
+      'exhaust manifold',
+      'header',
+      'headers',
+    ],
   },
   {
-    label: 'Glass / mirrors / bulbs',
+    label: 'Glass / bulbs / lighting',
     keywords: [
       'windshield',
       'window glass',
-      'side mirror',
+      'broken glass',
+      'side mirror glass',
       'headlight bulb',
       'tail light bulb',
+      'light bulb',
+      'headlamp bulb',
     ],
   },
   {
@@ -89,76 +138,101 @@ const STATED_NOT_COVERED: ComponentEntry[] = [
     keywords: [
       'paint',
       'body panel',
+      'body damage',
       'dent',
       'upholstery',
       'carpet',
-      'door handle cosmetic',
+      'carpeting',
+      'molding',
+      'weather stripping',
+      'bumper cover',
+    ],
+  },
+  {
+    label: 'Seals/gaskets only (unless with covered repair)',
+    keywords: [
+      'valve cover gasket only',
+      'oil pan gasket only',
+      'seal leak only',
+      'gasket only',
+    ],
+  },
+  {
+    label: 'Sludge / neglect / overheating abuse',
+    keywords: [
+      'sludge',
+      'lack of oil',
+      'no oil changes',
+      'overheating abuse',
+      'continued use after overheating',
     ],
   },
 ];
 
-/** Classic — basic stated powertrain (Section 2 style core list). */
+/** Classic Section 2(a) — stated components (FWCL). */
 const CLASSIC_COVERED: ComponentEntry[] = [
   {
     label: 'Engine (internal lubricated parts)',
     keywords: [
       'engine',
-      'cylinder head',
-      'head gasket',
       'piston',
+      'pistons',
+      'connecting rod',
       'crankshaft',
       'camshaft',
+      'push rod',
+      'valve spring',
+      'rocker arm',
+      'timing gear',
       'timing chain',
       'timing belt',
       'oil pump',
-      'valve train',
-      'rod bearing',
-      'main bearing',
+      'intake manifold',
+      'cylinder head',
+      'head gasket',
+      'cylinder head gasket',
+      'engine block',
+      'harmonic balancer',
+      'flywheel',
+      'flexplate',
+      'turbo',
+      'turbocharger',
+      'supercharger',
     ],
   },
   {
     label: 'Transmission',
     keywords: [
       'transmission',
-      'transaxle',
       'torque converter',
-      'valve body',
-      'transmission pump',
+      'vacuum modulator',
+      'transmission mount',
+      'transaxle',
     ],
+  },
+  {
+    label: 'Transfer case (4x4 / AWD)',
+    keywords: ['transfer case', 'transfer unit'],
   },
   {
     label: 'Drive axle / differential',
     keywords: [
       'drive axle',
       'axle shaft',
-      'differential',
       'cv joint',
       'cv axle',
-      'transfer case',
+      'constant velocity',
+      'universal joint',
+      'u-joint',
+      'drive shaft',
+      'driveshaft',
+      'differential',
+      'locking hub',
     ],
   },
-  {
-    label: 'Turbo / supercharger (if listed)',
-    keywords: ['turbo', 'turbocharger', 'supercharger'],
-  },
-];
-
-/** Vital / Drive — broader stated lists (electrical, A/C, cooling, etc.). */
-const VITAL_DRIVE_COVERED: ComponentEntry[] = [
-  ...CLASSIC_COVERED,
   {
     label: 'Cooling system',
-    keywords: [
-      'water pump',
-      'radiator',
-      'thermostat',
-      'cooling fan',
-      'fan clutch',
-    ],
-  },
-  {
-    label: 'Electrical (charging / starting)',
-    keywords: ['alternator', 'starter', 'voltage regulator'],
+    keywords: ['radiator', 'fan clutch', 'water pump', 'cooling fan'],
   },
   {
     label: 'Air conditioning',
@@ -168,11 +242,47 @@ const VITAL_DRIVE_COVERED: ComponentEntry[] = [
       'air conditioning compressor',
       'condenser',
       'evaporator',
+      'expansion valve',
+      'blower motor',
+      'orifice tube',
+      'receiver dryer',
+      'receiver/dryer',
     ],
   },
   {
+    label: 'Electrical (charging / starting / switches)',
+    keywords: [
+      'alternator',
+      'voltage regulator',
+      'starter motor',
+      'starter solenoid',
+      'starter',
+      'ignition switch',
+      'wiper motor',
+      'headlamp switch',
+      'turn signal switch',
+      'cruise control transducer',
+      'washer pump',
+      'rear defogger switch',
+    ],
+  },
+];
+
+/**
+ * Vital / Drive Section 2(a) — broader stated lists than Classic.
+ * (Fuel, steering, more electrical; mounts often limited.)
+ */
+const VITAL_DRIVE_COVERED: ComponentEntry[] = [
+  ...CLASSIC_COVERED,
+  {
     label: 'Fuel system',
-    keywords: ['fuel pump', 'fuel injector', 'injection pump'],
+    keywords: [
+      'fuel pump',
+      'fuel injection pump',
+      'injection pump',
+      'metal fuel delivery',
+      'fuel injector',
+    ],
   },
   {
     label: 'Steering',
@@ -181,57 +291,118 @@ const VITAL_DRIVE_COVERED: ComponentEntry[] = [
       'steering rack',
       'rack and pinion',
       'steering gear',
+      'power steering',
     ],
   },
   {
-    label: 'Sensors (powertrain)',
+    label: 'Powertrain sensors (optional upgrade context)',
     keywords: [
       'oxygen sensor',
       'o2 sensor',
       'maf sensor',
       'map sensor',
       'crank sensor',
+      'crankshaft sensor',
       'cam sensor',
+      'camshaft sensor',
       'abs sensor',
     ],
   },
 ];
 
 /**
- * Complete (exclusionary) — components typically listed as exclusions.
- * If matched → deny. Everything else is presumed covered at rule level.
+ * Complete exclusionary list (Section 2 items 1a + maintenance wear).
+ * Manufacturer's Extension (FWCPM): 1b entertainment/sensor-style exclusions do not apply.
  */
-const COMPLETE_EXCLUSIONS: ComponentEntry[] = [
+const COMPLETE_EXCLUSIONS_CORE: ComponentEntry[] = [
   ...STATED_NOT_COVERED,
   {
-    label: 'Maintenance neglect items',
-    keywords: ['sludge', 'lack of oil', 'no oil changes', 'overheating abuse'],
+    label: 'Airbags / seat belts / restraints',
+    keywords: ['airbag', 'air bag', 'seat belt', 'seatbelt', 'restraint system'],
   },
   {
     label: 'Aftermarket / modified parts',
-    keywords: ['aftermarket', 'chip tune', 'lift kit', 'racing'],
-  },
-  {
-    label: 'Seals and gaskets (unless upgrade)',
-    keywords: ['valve cover gasket', 'oil pan gasket', 'seal leak only'],
-  },
-  {
-    label: 'Suspension wear',
     keywords: [
-      'shock absorber',
-      'strut assembly',
-      'ball joint',
-      'control arm bushing',
-      'sway bar link',
+      'aftermarket',
+      'chip tune',
+      'lift kit',
+      'racing',
+      'remote starter',
     ],
   },
   {
-    label: 'Entertainment / navigation',
-    keywords: ['radio', 'infotainment', 'navigation unit', 'speaker'],
+    label: 'Keyless entry / alarms',
+    keywords: [
+      'keyless entry',
+      'keyless lock',
+      'alarm system',
+      'remote start',
+    ],
+  },
+  {
+    label: 'Hoses / belts (non-timing) / fluids',
+    keywords: [
+      'radiator hose',
+      'heater hose',
+      'serpentine belt only',
+      'accessory belt',
+      'fluid only',
+    ],
   },
 ];
 
-const COVERED_BY_TYPE: Record<Exclude<ContractType, 'complete'>, ComponentEntry[]> = {
+/** Complete 1b exclusions (standard Complete only, not Mfr Extension). */
+const COMPLETE_EXCLUSIONS_1B: ComponentEntry[] = [
+  {
+    label: 'Entertainment / navigation / screens',
+    keywords: [
+      'radio',
+      'cd player',
+      'bluetooth',
+      'gps',
+      'navigation',
+      'infotainment',
+      'led screen',
+      'speaker',
+      'amplifier',
+    ],
+  },
+  {
+    label: 'Sensors (any kind — base Complete)',
+    keywords: [
+      'sensor',
+      'sensors',
+      'cam sensor',
+      'ignition coil',
+      'fuel injector',
+    ],
+  },
+  {
+    label: 'Shocks / struts / adjustable suspension',
+    keywords: [
+      'shock absorber',
+      'shocks',
+      'strut assembly',
+      'struts',
+      'ride height',
+      'air suspension',
+    ],
+  },
+  {
+    label: 'Instrument cluster / gauges',
+    keywords: [
+      'instrument cluster',
+      'digital cluster',
+      'gauge cluster',
+      'speedometer cluster',
+    ],
+  },
+];
+
+const COVERED_BY_TYPE: Record<
+  Exclude<ContractType, 'complete'>,
+  ComponentEntry[]
+> = {
   classic: CLASSIC_COVERED,
   vital: VITAL_DRIVE_COVERED,
   drive: VITAL_DRIVE_COVERED,
@@ -263,7 +434,8 @@ function findMatches(
 export function evaluateComponentCoverage(
   contractType: ContractTypeOrUnknown,
   repairDescription: string,
-  incidentDescription = ''
+  incidentDescription = '',
+  variant: ContractVariant = 'standard'
 ): ComponentCoverageResult {
   const text = normalize(`${repairDescription} ${incidentDescription}`);
   const flags: string[] = [];
@@ -273,15 +445,27 @@ export function evaluateComponentCoverage(
       status: 'unclear',
       matchedLabel: null,
       matchedKeywords: [],
-      flags: contractType === 'unknown'
-        ? ['Cannot evaluate component coverage without contract type']
-        : ['Empty repair description — component coverage unclear'],
+      flags:
+        contractType === 'unknown'
+          ? ['Cannot evaluate component coverage without contract type']
+          : ['Empty repair description — component coverage unclear'],
       hardDeny: false,
     };
   }
 
   if (contractType === 'complete') {
-    const excluded = findMatches(text, COMPLETE_EXCLUSIONS);
+    const exclusionList =
+      variant === 'manufacturer_extension'
+        ? COMPLETE_EXCLUSIONS_CORE
+        : [...COMPLETE_EXCLUSIONS_CORE, ...COMPLETE_EXCLUSIONS_1B];
+
+    if (variant === 'manufacturer_extension') {
+      flags.push(
+        "Manufacturer's Extension: Section 1b entertainment/sensor exclusions do not apply"
+      );
+    }
+
+    const excluded = findMatches(text, exclusionList);
     if (excluded.length > 0) {
       const labels = Array.from(new Set(excluded.map((h) => h.entry.label)));
       flags.push(
@@ -327,7 +511,7 @@ export function evaluateComponentCoverage(
   if (covered.length > 0) {
     const labels = Array.from(new Set(covered.map((h) => h.entry.label)));
     flags.push(
-      `Stated-component plan: matches covered list (${labels.join(', ')})`
+      `Stated-component plan: matches Section 2(a) covered list (${labels.join(', ')})`
     );
     return {
       status: 'covered',
@@ -339,7 +523,7 @@ export function evaluateComponentCoverage(
   }
 
   flags.push(
-    `Stated-component plan (${contractType}): component not matched to covered list — AI/adjuster verification required`
+    `Stated-component plan (${contractType}): component not matched to Section 2(a) list — AI/adjuster verification required`
   );
   return {
     status: 'unclear',
@@ -356,6 +540,9 @@ export function getComponentCatalogSummary() {
     classicCovered: CLASSIC_COVERED.map((e) => e.label),
     vitalDriveCovered: VITAL_DRIVE_COVERED.map((e) => e.label),
     statedNotCovered: STATED_NOT_COVERED.map((e) => e.label),
-    completeExclusions: COMPLETE_EXCLUSIONS.map((e) => e.label),
+    completeExclusions: [
+      ...COMPLETE_EXCLUSIONS_CORE,
+      ...COMPLETE_EXCLUSIONS_1B,
+    ].map((e) => e.label),
   };
 }

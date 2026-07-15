@@ -100,9 +100,14 @@ export function ClaimsDashboard() {
   const patchClaim = useCallback(
     (patch: ClaimPatch) => {
       setClaims((current) =>
-        current.map((claim) =>
-          claim._id === patch._id ? { ...claim, ...patch } : claim
-        )
+        current.map((claim) => {
+          if (claim._id !== patch._id) return claim;
+          const next = { ...claim, ...patch };
+          if (patch.infoRequest === null) {
+            delete next.infoRequest;
+          }
+          return next;
+        })
       );
       void loadStats();
     },

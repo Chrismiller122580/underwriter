@@ -210,7 +210,8 @@ export function evaluateContractRules(
   const componentCoverage = evaluateComponentCoverage(
     contractType,
     claim.repairInformation.detailedRepairDescription,
-    claim.incidentDetails.descriptionOfIncident
+    claim.incidentDetails.descriptionOfIncident,
+    claim.policyInformation.contractVariant ?? 'standard'
   );
   flags.push(...componentCoverage.flags);
 

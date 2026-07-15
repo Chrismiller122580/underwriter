@@ -55,4 +55,31 @@ describe('evaluateComponentCoverage', () => {
     expect(result.status).toBe('covered');
     expect(result.hardDeny).toBe(false);
   });
+
+  it('denies sensors on standard Complete but not on Manufacturer Extension', () => {
+    const standard = evaluateComponentCoverage(
+      'complete',
+      'Cam sensor replacement',
+      '',
+      'standard'
+    );
+    expect(standard.hardDeny).toBe(true);
+
+    const mfr = evaluateComponentCoverage(
+      'complete',
+      'Cam sensor replacement',
+      '',
+      'manufacturer_extension'
+    );
+    expect(mfr.hardDeny).toBe(false);
+  });
+
+  it('covers classic A/C compressor from expanded Section 2(a)', () => {
+    const result = evaluateComponentCoverage(
+      'classic',
+      'A/C compressor replacement',
+      'AC failed after highway drive'
+    );
+    expect(result.status).toBe('covered');
+  });
 });

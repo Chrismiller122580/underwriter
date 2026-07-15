@@ -67,5 +67,9 @@ export async function ensureSchema(): Promise<void> {
     ON claims ((lower(policy_information->>'policyNumber')))
   `;
 
+  await sql`
+    ALTER TABLE claims ADD COLUMN IF NOT EXISTS info_request JSONB
+  `;
+
   schemaReady = true;
 }

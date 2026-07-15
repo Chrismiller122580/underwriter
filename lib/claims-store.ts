@@ -17,6 +17,10 @@ import {
   toRelatedClaimSummary,
   type PolicyHistoryContext,
 } from '@/lib/policy-history';
+import {
+  buildInfoRequest,
+  type InfoRequestRecord,
+} from '@/lib/info-request';
 import type { UnderwritingResult } from '@/lib/underwrite';
 
 export type ClaimRecord = {
@@ -66,6 +70,7 @@ export type ClaimRecord = {
     reviewedAt?: string;
   };
   aiAnalysis?: AiAnalysis;
+  infoRequest?: InfoRequestRecord;
   createdAt: string;
   updatedAt: string;
 };
@@ -81,6 +86,7 @@ type ClaimRow = {
   status: string;
   underwriting: ClaimRecord['underwriting'] | null;
   ai_analysis: AiAnalysis | null;
+  info_request?: InfoRequestRecord | null;
   created_at: string;
   updated_at: string;
 };
@@ -97,6 +103,7 @@ function mapRow(row: ClaimRow): ClaimRecord {
     status: row.status,
     underwriting: row.underwriting ?? undefined,
     aiAnalysis: row.ai_analysis ?? undefined,
+    infoRequest: row.info_request ?? undefined,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
   };
@@ -190,7 +197,9 @@ export async function getClaimPortalStats(): Promise<ClaimPortalStats> {
       COUNT(*) FILTER (WHERE status = 'approved')::int AS approved,
       COUNT(*) FILTER (WHERE status = 'denied')::int AS denied,
       COUNT(*) FILTER (
-        WHERE COALESCE(jsonb_array_length(ai_analysis->'informationRequests'), 0) > 0
+        WHERE status = 'needs_info'
+          OR info_request IS NOT NULL
+          OR COALESCE(jsonb_array_length(ai_analysis->'informationRequests'), 0) > 0
       )::int AS needs_info,
       COUNT(*) FILTER (
         WHERE COALESCE(jsonb_array_length(ai_analysis->'guidelineConflicts'), 0) > 0
@@ -200,8 +209,9 @@ export async function getClaimPortalStats(): Promise<ClaimPortalStats> {
         WHERE COALESCE((ai_analysis->>'riskScore')::numeric, 0) >= 7
       )::int AS high_risk,
       COUNT(*) FILTER (
-        WHERE status IN ('pending', 'under_review')
+        WHERE status IN ('pending', 'under_review', 'needs_info')
           OR ai_analysis IS NULL
+          OR info_request IS NOT NULL
           OR COALESCE(jsonb_array_length(ai_analysis->'informationRequests'), 0) > 0
           OR COALESCE(jsonb_array_length(ai_analysis->'guidelineConflicts'), 0) > 0
       )::int AS action_queue
@@ -448,7 +458,63 @@ export async function runAiAnalysis(
   return { claim: updated, analysis, reused: false };
 }
 
-const UNDERWRITABLE_STATUSES = new Set(['pending', 'under_review']);
+const UNDERWRITABLE_STATUSES = new Set([
+  'pending',
+  'under_review',
+  'needs_info',
+]);
+
+export async function requestInfoOnClaim(
+  id: string,
+  input: {
+    items: string[];
+    note?: string;
+    requestedBy?: string;
+    source?: InfoRequestRecord['source'];
+  }
+): Promise<ClaimRecord | null> {
+  const claim = await getClaimById(id);
+  if (!claim) return null;
+
+  if (!UNDERWRITABLE_STATUSES.has(claim.status) && claim.status !== 'needs_info') {
+    throw new ClaimNotUnderwritableError(claim);
+  }
+
+  const infoRequest = buildInfoRequest(input);
+  const sql = getSql();
+  const rows = (await sql`
+    UPDATE claims
+    SET status = 'needs_info',
+        info_request = ${JSON.stringify(infoRequest)}::jsonb,
+        updated_at = NOW()
+    WHERE id = ${id}::uuid
+    RETURNING *
+  `) as ClaimRow[];
+
+  return mapRow(rows[0]);
+}
+
+export async function clearInfoRequestOnClaim(
+  id: string
+): Promise<ClaimRecord | null> {
+  const claim = await getClaimById(id);
+  if (!claim) return null;
+
+  const nextStatus =
+    claim.status === 'needs_info' ? 'under_review' : claim.status;
+
+  const sql = getSql();
+  const rows = (await sql`
+    UPDATE claims
+    SET status = ${nextStatus},
+        info_request = NULL,
+        updated_at = NOW()
+    WHERE id = ${id}::uuid
+    RETURNING *
+  `) as ClaimRow[];
+
+  return mapRow(rows[0]);
+}
 
 export class ClaimNotUnderwritableError extends Error {
   readonly claim: ClaimRecord;

@@ -17,9 +17,11 @@ Vehicle warranty claims intake, document upload, and automated policy underwriti
 | **Screenshot autofill** | Upload a portal screenshot — AI extracts and fills the claim form |
 | **Policy lookup** | Contract type resolved from policy number prefix (FWCL, FWVL, FWDR, FWCP, FWCPM) |
 | **Contract-aware underwriting** | Rule engine + Grok AI use plan-specific waiting periods, coverage model, and limits |
-| **Component coverage pre-check** | Keyword rules for stated vs exclusionary plans (hard deny on clear non-covered items) |
+| **Component coverage pre-check** | Section 2 keyword rules from plan contracts (stated vs exclusionary; FWCPM 1b exception) |
 | **Aggregate LOL** | Policy-level sum of prior approved claims vs plan max aggregate |
 | **Auto-approve guardrails** | Final approve only when AI risk ≤ 4, confidence ≥ 80%, no fraud/info gaps |
+| **Document reading** | Extracts text from attached PDFs/text into AI underwriting context |
+| **Request info** | Adjuster checklist → `needs_info` status; clear when received |
 | **AI underwriting** | Grok risk scoring, fraud detection, smart recommendations |
 | **Auto analysis** | Background AI scan on every new claim submission |
 

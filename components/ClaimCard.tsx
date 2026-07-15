@@ -16,12 +16,14 @@ import {
 import type { ClaimRecord } from '@/lib/claims-store';
 import { AiInsights } from './AiInsights';
 import { AnalyzeButton } from './AnalyzeButton';
+import { RequestInfoButton } from './RequestInfoButton';
 
 export type ClaimPatch = {
   _id: string;
   status?: string;
   aiAnalysis?: ClaimRecord['aiAnalysis'];
   underwriting?: ClaimRecord['underwriting'];
+  infoRequest?: ClaimRecord['infoRequest'] | null;
   updatedAt?: string;
 };
 
@@ -121,9 +123,15 @@ export function ClaimCard({
       </div>
 
       <div className="claim-signal-row">
-        {(claim.aiAnalysis?.informationRequests?.length ?? 0) > 0 && (
+        {(claim.infoRequest?.items?.length ?? 0) > 0 && (
           <span className="claim-signal claim-signal-info">
-            {claim.aiAnalysis!.informationRequests!.length} info request
+            Info requested ({claim.infoRequest!.items.length})
+          </span>
+        )}
+        {(claim.aiAnalysis?.informationRequests?.length ?? 0) > 0 &&
+          !(claim.infoRequest?.items?.length ?? 0) && (
+          <span className="claim-signal claim-signal-info">
+            {claim.aiAnalysis!.informationRequests!.length} AI info suggest
             {claim.aiAnalysis!.informationRequests!.length === 1 ? '' : 's'}
           </span>
         )}
@@ -299,6 +307,28 @@ export function ClaimCard({
 
           {claim.aiAnalysis && <AiInsights analysis={claim.aiAnalysis} />}
 
+          {claim.infoRequest?.items?.length ? (
+            <div className="info-request-box">
+              <strong>Open information request</strong>
+              <ul>
+                {claim.infoRequest.items.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+              {claim.infoRequest.note && (
+                <p className="claim-panel-meta">Note: {claim.infoRequest.note}</p>
+              )}
+              {claim.infoRequest.requestedAt && (
+                <span className="claim-panel-meta">
+                  Requested {formatDate(claim.infoRequest.requestedAt)}
+                  {claim.infoRequest.requestedBy
+                    ? ` · ${claim.infoRequest.requestedBy}`
+                    : ''}
+                </span>
+              )}
+            </div>
+          ) : null}
+
           {claim.underwriting?.reason && (
             <div className="underwriting-decision-box">
               <strong>Last underwriting decision</strong>
@@ -335,6 +365,23 @@ export function ClaimCard({
             }
             label={claim.aiAnalysis ? 'Refresh AI Scan' : 'Run AI Scan'}
           />
+          {(claim.status === 'pending' ||
+            claim.status === 'under_review' ||
+            claim.status === 'needs_info') && (
+            <RequestInfoButton
+              claimId={claim._id}
+              suggestedItems={claim.aiAnalysis?.informationRequests ?? []}
+              existingRequest={claim.infoRequest}
+              onComplete={(result) =>
+                onClaimUpdated({
+                  _id: claim._id,
+                  status: result.status,
+                  infoRequest: result.infoRequest,
+                  updatedAt: result.updatedAt ?? new Date().toISOString(),
+                })
+              }
+            />
+          )}
           {readiness.canUnderwrite ? (
             <UnderwriteButton
               claimId={claim._id}

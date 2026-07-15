@@ -2,6 +2,11 @@ import { generateObject } from 'ai';
 import { getTextModelId, getXaiProvider } from '@/lib/ai-client';
 import { buildContractContext } from '@/lib/contracts/registry';
 import type { ClaimRecord } from '@/lib/claims-store';
+import {
+  extractClaimDocumentTexts,
+  formatDocumentTextsForPrompt,
+  type ExtractedClaimDocument,
+} from '@/lib/claim-document-extract';
 import { heuristicAnalysis } from '@/lib/ai-heuristic';
 import { aiAnalysisSchema, type AiAnalysis } from '@/lib/ai-types';
 import { logger } from '@/lib/logger';
@@ -19,6 +24,8 @@ import { evaluateComponentCoverage } from '@/lib/contracts/components';
 
 export type AnalyzeClaimOptions = {
   policyHistory?: PolicyHistoryContext | null;
+  /** Pre-extracted document texts; if omitted, extracted automatically when attached. */
+  documentTexts?: ExtractedClaimDocument[] | null;
 };
 
 function buildDocumentStatus(claim: ClaimRecord) {
@@ -42,14 +49,18 @@ function buildDocumentStatus(claim: ClaimRecord) {
 
 function buildClaimContext(
   claim: ClaimRecord,
-  policyHistory?: PolicyHistoryContext | null
+  policyHistory?: PolicyHistoryContext | null,
+  documentTexts?: ExtractedClaimDocument[] | null
 ): string {
   const documents = buildDocumentStatus(claim);
   const contractType = claim.policyInformation.contractType ?? 'unknown';
+  const contractVariant =
+    claim.policyInformation.contractVariant ?? 'standard';
   const componentCoverage = evaluateComponentCoverage(
     contractType,
     claim.repairInformation.detailedRepairDescription,
-    claim.incidentDetails.descriptionOfIncident
+    claim.incidentDetails.descriptionOfIncident,
+    contractVariant
   );
 
   return JSON.stringify(
@@ -61,6 +72,10 @@ function buildClaimContext(
       repair: claim.repairInformation,
       amount: claim.claimDetails.amount,
       documents,
+      documentContents: documentTexts
+        ? formatDocumentTextsForPrompt(documentTexts)
+        : undefined,
+      openInfoRequest: claim.infoRequest ?? null,
       submittedAt: claim.createdAt,
       componentCoverage: {
         status: componentCoverage.status,
@@ -99,6 +114,11 @@ export async function analyzeClaimWithAi(
       contractVariant
     );
 
+    const documentTexts =
+      options.documentTexts !== undefined
+        ? options.documentTexts
+        : await extractClaimDocumentTexts(claim);
+
     const { object } = await generateObject({
       model: xai(model),
       schema: aiAnalysisSchema,
@@ -108,14 +128,16 @@ export async function analyzeClaimWithAi(
 Contract context:
 ${buildContractContext(contractType, contractVariant)}
 
-Claim data (includes component coverage pre-check and policy aggregate history when available):
-${buildClaimContext(claim, options.policyHistory)}
+Claim data (includes component coverage pre-check, policy aggregate history, and extracted supporting document text when available):
+${buildClaimContext(claim, options.policyHistory, documentTexts)}
 
 Pay special attention to:
 - Whether the component is covered for this contract type
 - Aggregate limit of liability vs prior approved amounts on the same policy
 - Prior similar repairs (possible re-claim of already replaced components)
-- Missing information that should be requested rather than denied`,
+- Maintenance/service evidence in extracted document text
+- Missing information that should be requested rather than denied
+- Any open infoRequest checklist still outstanding`,
     });
 
     return {
