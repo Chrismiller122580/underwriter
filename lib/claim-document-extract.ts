@@ -1,6 +1,8 @@
 import { readFile } from 'fs/promises';
 import path from 'path';
+import { generateText } from 'ai';
 import type { ClaimRecord } from '@/lib/claims-store';
+import { getVisionModelId, getXaiProvider } from '@/lib/ai-client';
 import { isAllowedClaimDocumentUrl } from '@/lib/document-urls';
 import { logger } from '@/lib/logger';
 import { FILE_FIELD_LABELS, FILE_FIELDS } from '@/lib/parse-claim-form';
@@ -46,6 +48,64 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
   return result.text ?? '';
 }
 
+function isImageFile(contentType: string, filename: string): boolean {
+  const type = contentType.toLowerCase();
+  const lowerName = filename.toLowerCase();
+  return (
+    type.startsWith('image/') ||
+    lowerName.endsWith('.png') ||
+    lowerName.endsWith('.jpg') ||
+    lowerName.endsWith('.jpeg') ||
+    lowerName.endsWith('.webp') ||
+    lowerName.endsWith('.gif')
+  );
+}
+
+function guessImageMime(contentType: string, filename: string): string {
+  if (contentType.startsWith('image/')) return contentType.split(';')[0]!;
+  const lower = filename.toLowerCase();
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.gif')) return 'image/gif';
+  return 'image/jpeg';
+}
+
+/**
+ * OCR / vision extraction for scanned docs and photos of estimates/maintenance.
+ */
+export async function ocrImageWithVision(
+  buffer: Buffer,
+  mimeType: string
+): Promise<string> {
+  const xai = getXaiProvider();
+  if (!xai) {
+    throw new Error('GROK_API_KEY required for image document OCR');
+  }
+
+  const model = getVisionModelId();
+  const dataUrl = `data:${mimeType};base64,${buffer.toString('base64')}`;
+
+  const { text } = await generateText({
+    model: xai(model),
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: `Extract all readable text from this warranty claim supporting document image.
+Focus on: dates, mileage, service descriptions, parts, labor rates, shop names, and any oil-change or maintenance history.
+Return plain text only. If nothing is readable, say "No readable text found."`,
+          },
+          { type: 'image', image: dataUrl },
+        ],
+      },
+    ],
+  });
+
+  return text?.trim() || '';
+}
+
 async function bufferToText(
   buffer: Buffer,
   contentType: string,
@@ -79,7 +139,11 @@ async function bufferToText(
     return raw;
   }
 
-  // Images / unknown binaries: no OCR in this path
+  if (isImageFile(type, lowerName)) {
+    const mime = guessImageMime(type, lowerName);
+    return ocrImageWithVision(buffer, mime);
+  }
+
   throw new Error(
     `Unsupported document type for text extract (${contentType || filename})`
   );
@@ -100,9 +164,14 @@ async function loadDocumentBuffer(
     }
     const buffer = await readFile(abs);
     const filename = path.basename(abs);
-    const contentType = filename.toLowerCase().endsWith('.pdf')
-      ? 'application/pdf'
-      : 'application/octet-stream';
+    const lower = filename.toLowerCase();
+    let contentType = 'application/octet-stream';
+    if (lower.endsWith('.pdf')) contentType = 'application/pdf';
+    else if (lower.endsWith('.png')) contentType = 'image/png';
+    else if (lower.endsWith('.jpg') || lower.endsWith('.jpeg'))
+      contentType = 'image/jpeg';
+    else if (lower.endsWith('.webp')) contentType = 'image/webp';
+    else if (lower.endsWith('.txt')) contentType = 'text/plain';
     return { buffer, contentType, filename };
   }
 

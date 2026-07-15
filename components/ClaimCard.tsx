@@ -169,6 +169,12 @@ export function ClaimCard({
 
       <div className="claim-fact-strip">
         <div className="claim-fact">
+          <span className="claim-fact-label">Tracking</span>
+          <span className="claim-fact-value">
+            {claim.publicToken ?? '—'}
+          </span>
+        </div>
+        <div className="claim-fact">
           <span className="claim-fact-label">Policy</span>
           <span className="claim-fact-value">{claim.policyInformation.policyNumber}</span>
           {claim.policyInformation.contractType &&

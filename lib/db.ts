@@ -91,5 +91,41 @@ export async function ensureSchema(): Promise<void> {
     ON claim_events (claim_id, created_at DESC)
   `;
 
+  await sql`
+    ALTER TABLE claims ADD COLUMN IF NOT EXISTS public_token TEXT
+  `;
+
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_claims_public_token
+    ON claims (public_token)
+    WHERE public_token IS NOT NULL
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS users (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      role VARCHAR(20) NOT NULL,
+      password_hash TEXT NOT NULL,
+      active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_users_email_lower
+    ON users (lower(email))
+  `;
+
   schemaReady = true;
+
+  // Bootstrap named staff accounts from env when empty (best-effort).
+  try {
+    const { seedDefaultUsersIfEmpty } = await import('@/lib/users-store');
+    await seedDefaultUsersIfEmpty();
+  } catch {
+    // Ignore seed failures during schema init
+  }
 }

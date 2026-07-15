@@ -18,8 +18,8 @@ export default function LoginPage({
         <p className="badge">Staff Access</p>
         <h1 className="page-title">Sign In</h1>
         <p className="page-intro">
-          Choose adjuster or supervisor, then enter the matching password.
-          Supervisors can upload AI underwriting knowledge.
+          Sign in with your staff email and password. Supervisors can manage
+          users, AI knowledge, and the full toolbox.
         </p>
         <LoginForm
           redirectTo={searchParams.next ?? '/claims'}

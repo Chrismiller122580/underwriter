@@ -1145,6 +1145,97 @@ a {
   font-size: 14px;
 }
 
+.login-shared-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin: 12px 0;
+  cursor: pointer;
+}
+
+.status-card {
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.status-lookup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.status-result {
+  margin-top: 24px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--surface-2, #f8fafc);
+}
+
+.status-result-approved {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.status-result-denied {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.status-result-needs_info {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+}
+
+.status-result-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.status-result-facts dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.status-result-facts dd {
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+
+.status-result-summary {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.status-info-requests {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+
+.status-info-requests ul {
+  margin: 8px 0;
+  padding-left: 1.2rem;
+}
+
+.user-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.user-create-form {
+  display: grid;
+  gap: 12px;
+  max-width: 420px;
+}
+
 .claim-details {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

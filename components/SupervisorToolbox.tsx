@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AiInsights } from '@/components/AiInsights';
 import { KnowledgeManager } from '@/components/KnowledgeManager';
+import { UserManager } from '@/components/UserManager';
 import { CONTRACT_TYPES } from '@/lib/contracts/types';
 import { KNOWLEDGE_CATEGORY_LABELS, type KnowledgeCategory } from '@/lib/knowledge-types';
 
@@ -12,7 +13,8 @@ type TabId =
   | 'sandbox'
   | 'contracts'
   | 'prompt'
-  | 'bulk';
+  | 'bulk'
+  | 'users';
 
 type OverviewData = {
   ai: { enabled: boolean; model: string; visionModel: string };
@@ -80,6 +82,7 @@ const TABS: { id: TabId; label: string; hint: string }[] = [
   { id: 'contracts', label: 'Contract Intel', hint: 'Prefixes, waiting periods, rules' },
   { id: 'prompt', label: 'Prompt Inspector', hint: 'See exactly what Grok receives' },
   { id: 'bulk', label: 'Bulk AI Ops', hint: 'Re-run analysis across claims' },
+  { id: 'users', label: 'Staff Users', hint: 'Named adjuster and supervisor accounts' },
 ];
 
 const DEFAULT_SCENARIO = {
@@ -185,6 +188,7 @@ export function SupervisorToolbox() {
         {tab === 'bulk' && (
           <BulkPanel onComplete={() => { setMessage('Bulk analysis finished.'); loadOverview(); }} />
         )}
+        {tab === 'users' && <UserManager />}
       </div>
     </div>
   );

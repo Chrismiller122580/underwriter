@@ -16,6 +16,7 @@ import {
 type Session = {
   authenticated: boolean;
   email?: string;
+  name?: string;
   role?: 'adjuster' | 'supervisor';
 };
 
@@ -24,7 +25,10 @@ type NavItem = {
   label: string;
 };
 
-const PUBLIC_LINKS: NavItem[] = [{ href: '/', label: 'Home' }];
+const PUBLIC_LINKS: NavItem[] = [
+  { href: '/', label: 'Home' },
+  { href: '/status', label: 'Claim status' },
+];
 
 const STAFF_LINKS: NavItem[] = [
   { href: '/claims', label: 'Dashboard' },
@@ -171,8 +175,9 @@ export function AppNav() {
                   className={
                     isSupervisor ? 'nav-role nav-role-supervisor' : 'nav-role'
                   }
+                  title={session?.email}
                 >
-                  {session?.role}
+                  {session?.name || session?.email || session?.role}
                 </span>
                 <button
                   type="button"
@@ -217,8 +222,9 @@ export function AppNav() {
                   className={
                     isSupervisor ? 'nav-role nav-role-supervisor' : 'nav-role'
                   }
+                  title={session?.email}
                 >
-                  {session?.role}
+                  {session?.name || session?.email || session?.role}
                 </span>
                 <button
                   type="button"

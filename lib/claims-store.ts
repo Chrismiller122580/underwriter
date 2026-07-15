@@ -75,6 +75,8 @@ export type ClaimRecord = {
   };
   aiAnalysis?: AiAnalysis;
   infoRequest?: InfoRequestRecord;
+  /** Public tracking code for claimant status portal (not the UUID). */
+  publicToken?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -91,6 +93,7 @@ type ClaimRow = {
   underwriting: ClaimRecord['underwriting'] | null;
   ai_analysis: AiAnalysis | null;
   info_request?: InfoRequestRecord | null;
+  public_token?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -108,9 +111,19 @@ function mapRow(row: ClaimRow): ClaimRecord {
     underwriting: row.underwriting ?? undefined,
     aiAnalysis: row.ai_analysis ?? undefined,
     infoRequest: row.info_request ?? undefined,
+    publicToken: row.public_token ?? undefined,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
   };
+}
+
+function generatePublicToken(): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let token = '';
+  for (let i = 0; i < 10; i++) {
+    token += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return token;
 }
 
 export type ClaimPortalStats = {
@@ -297,11 +310,13 @@ export async function createClaim(
   await ensureSchema();
   const sql = getSql();
   const doc = buildClaimDocument(parsed, documentPaths);
+  const publicToken = generatePublicToken();
 
   const rows = (await sql`
     INSERT INTO claims (
       policy_information, vehicle_info, claimant_information,
-      incident_details, repair_information, claim_details, status
+      incident_details, repair_information, claim_details, status,
+      public_token
     ) VALUES (
       ${JSON.stringify(doc.policyInformation)}::jsonb,
       ${JSON.stringify(doc.vehicleInfo)}::jsonb,
@@ -309,7 +324,8 @@ export async function createClaim(
       ${JSON.stringify(doc.incidentDetails)}::jsonb,
       ${JSON.stringify(doc.repairInformation)}::jsonb,
       ${JSON.stringify(doc.claimDetails)}::jsonb,
-      ${doc.status}
+      ${doc.status},
+      ${publicToken}
     )
     RETURNING *
   `) as ClaimRow[];
@@ -318,14 +334,33 @@ export async function createClaim(
   await safeAppendClaimEvent({
     claimId: created._id,
     eventType: 'submitted',
-    summary: `Claim submitted for ${created.claimantInformation.name} · $${created.claimDetails.amount.toLocaleString()}`,
+    summary: `Claim submitted for ${created.claimantInformation.name} · $${created.claimDetails.amount.toLocaleString()} · tracking ${publicToken}`,
     toStatus: created.status,
     detail: {
       policyNumber: created.policyInformation.policyNumber,
       contractType: created.policyInformation.contractType,
+      publicToken,
     },
   });
   return created;
+}
+
+export async function findClaimByPublicToken(
+  trackingCode: string
+): Promise<ClaimRecord | null> {
+  await ensureSchema();
+  const sql = getSql();
+  const code = trackingCode.trim().toUpperCase();
+  if (!code) return null;
+
+  const rows = (await sql`
+    SELECT * FROM claims
+    WHERE upper(public_token) = ${code}
+    LIMIT 1
+  `) as ClaimRow[];
+
+  if (rows.length === 0) return null;
+  return mapRow(rows[0]);
 }
 
 export async function updateClaimDocuments(

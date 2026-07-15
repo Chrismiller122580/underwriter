@@ -101,7 +101,9 @@ export async function POST(request: Request) {
         {
           id: claim._id,
           status: claim.status,
-          message: 'Claim submitted successfully.',
+          trackingCode: claim.publicToken,
+          message:
+            'Claim submitted successfully. Share the tracking code with the claimant for status checks.',
         },
         { status: 201 }
       );
@@ -126,7 +128,9 @@ export async function POST(request: Request) {
       {
         id: claim._id,
         status: claim.status,
-        message: 'Claim submitted successfully.',
+        trackingCode: claim.publicToken,
+        message:
+          'Claim submitted successfully. Share the tracking code with the claimant for status checks.',
       },
       { status: 201 }
     );

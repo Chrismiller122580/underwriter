@@ -10,6 +10,8 @@ export type UserRole = 'adjuster' | 'supervisor';
 export type Session = {
   email: string;
   role: UserRole;
+  userId?: string;
+  name?: string;
 };
 
 const userRoleSchema = z.enum(['adjuster', 'supervisor']);
@@ -23,7 +25,12 @@ function getSecret() {
 }
 
 export async function createSessionToken(session: Session): Promise<string> {
-  return new SignJWT({ email: session.email, role: session.role })
+  return new SignJWT({
+    email: session.email,
+    role: session.role,
+    userId: session.userId,
+    name: session.name,
+  })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('8h')
@@ -43,6 +50,8 @@ export async function verifySessionToken(
     return {
       email: String(payload.email),
       role: roleResult.data,
+      userId: payload.userId ? String(payload.userId) : undefined,
+      name: payload.name ? String(payload.name) : undefined,
     };
   } catch {
     return null;
@@ -67,6 +76,8 @@ export function getConfiguredRoles(): {
   adjuster: boolean;
   supervisor: boolean;
   supervisorUsesAdjusterFallback: boolean;
+  /** True when either env passwords or DB users can authenticate. */
+  multiUserReady: boolean;
 } {
   const adjusterPassword = process.env.ADJUSTER_PASSWORD?.trim();
   const supervisorPassword = process.env.SUPERVISOR_PASSWORD?.trim();
@@ -79,9 +90,13 @@ export function getConfiguredRoles(): {
     supervisor: supervisorConfigured,
     supervisorUsesAdjusterFallback:
       !isProductionDeploy() && !supervisorPassword && Boolean(adjusterPassword),
+    multiUserReady: true,
   };
 }
 
+/**
+ * Shared env-password login (legacy bootstrap). Prefer named DB users when present.
+ */
 export function verifyLoginPassword(
   password: string,
   role: UserRole
@@ -96,13 +111,21 @@ export function verifyLoginPassword(
       : supervisorPassword || adjusterPassword;
 
     if (effectiveSupervisorPassword && input === effectiveSupervisorPassword) {
-      return { email: 'supervisor@fwcut.local', role: 'supervisor' };
+      return {
+        email: 'supervisor@fwcut.local',
+        role: 'supervisor',
+        name: 'Default Supervisor',
+      };
     }
     return null;
   }
 
   if (adjusterPassword && input === adjusterPassword) {
-    return { email: 'adjuster@fwcut.local', role: 'adjuster' };
+    return {
+      email: 'adjuster@fwcut.local',
+      role: 'adjuster',
+      name: 'Default Adjuster',
+    };
   }
 
   return null;
@@ -110,19 +133,9 @@ export function verifyLoginPassword(
 
 /** @deprecated Use verifyLoginPassword with an explicit role. */
 export function verifyAdjusterPassword(password: string): Session | null {
-  const input = password.trim();
-  const adjusterPassword = process.env.ADJUSTER_PASSWORD?.trim();
-  const supervisorPassword = process.env.SUPERVISOR_PASSWORD?.trim();
-
-  if (supervisorPassword && input === supervisorPassword) {
-    return { email: 'supervisor@fwcut.local', role: 'supervisor' };
-  }
-
-  if (adjusterPassword && input === adjusterPassword) {
-    return { email: 'adjuster@fwcut.local', role: 'adjuster' };
-  }
-
-  return null;
+  const supervisor = verifyLoginPassword(password, 'supervisor');
+  if (supervisor) return supervisor;
+  return verifyLoginPassword(password, 'adjuster');
 }
 
 export function canUnderwrite(role: UserRole): boolean {
@@ -130,5 +143,9 @@ export function canUnderwrite(role: UserRole): boolean {
 }
 
 export function canManageKnowledge(role: UserRole): boolean {
+  return role === 'supervisor';
+}
+
+export function canManageUsers(role: UserRole): boolean {
   return role === 'supervisor';
 }

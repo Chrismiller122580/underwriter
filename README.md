@@ -25,6 +25,9 @@ Vehicle warranty claims intake, document upload, and automated policy underwriti
 | **Manual decision** | Approve / deny / review with required reason + audit trail |
 | **Activity history** | Claim timeline of submit, AI, underwrite, info, manual decisions |
 | **Labor rate rules** | Parse $/hr and diagnostic hours; hold when over class caps |
+| **Multi-user auth** | Named staff users (seeded from env); shared password fallback |
+| **Document OCR** | Image attachments read via Grok vision into AI context |
+| **Claim status portal** | Public `/status` lookup by tracking code + last name |
 | **AI underwriting** | Grok risk scoring, fraud detection, smart recommendations |
 | **Auto analysis** | Background AI scan on every new claim submission |
 
@@ -74,9 +77,9 @@ npm run dev
 
 | Role | Access |
 |------|--------|
-| **Public** | Submit claims at `/submit` |
-| **Adjuster** | View dashboard, run underwriting |
-| **Supervisor** | Same as adjuster (separate password) |
+| **Public** | Check claim status at `/status` with tracking code + last name |
+| **Adjuster** | Named user or shared password — dashboard & underwriting |
+| **Supervisor** | Named user or shared password — users, knowledge, toolbox |
 
 ---
 

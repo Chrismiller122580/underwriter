@@ -306,12 +306,23 @@ export function ClaimForm() {
         throw new Error(body.error ?? 'Submission failed');
       }
 
+      const body = result.body as {
+        trackingCode?: string;
+        message?: string;
+      };
+      const tracking = body.trackingCode
+        ? ` Tracking code: ${body.trackingCode} (give to claimant for /status).`
+        : '';
+
       setProgress(100);
       setMessage({
         type: 'success',
-        text: 'Claim submitted successfully. AI underwriting will run before approval.',
+        text:
+          (body.message ??
+            'Claim submitted successfully. AI underwriting will run before approval.') +
+          tracking,
       });
-      setTimeout(() => router.push('/claims'), 1200);
+      setTimeout(() => router.push('/claims'), tracking ? 2800 : 1200);
     } catch (err) {
       setMessage({
         type: 'error',

@@ -29,6 +29,9 @@ export function LandingPage() {
             <Link href="/login" className="button landing-cta-primary">
               Staff Login
             </Link>
+            <Link href="/status" className="button button-secondary landing-cta-info">
+              Check claim status
+            </Link>
             <button
               type="button"
               className="button button-secondary landing-cta-info"
