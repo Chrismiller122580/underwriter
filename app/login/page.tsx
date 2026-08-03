@@ -1,13 +1,14 @@
 import { LoginForm } from '@/components/LoginForm';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { next?: string; role?: string };
+  searchParams: Promise<{ next?: string; role?: string }>;
 }) {
+  const params = await searchParams;
   const defaultRole =
-    searchParams.role === 'supervisor' ? 'supervisor' : 'adjuster';
+    params.role === 'supervisor' ? 'supervisor' : 'adjuster';
 
   return (
     <main className="container page-main">
@@ -22,7 +23,7 @@ export default function LoginPage({
           users, AI knowledge, and the full toolbox.
         </p>
         <LoginForm
-          redirectTo={searchParams.next ?? '/claims'}
+          redirectTo={params.next ?? '/claims'}
           defaultRole={defaultRole}
         />
       </div>

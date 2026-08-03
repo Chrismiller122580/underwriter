@@ -68,7 +68,10 @@ export async function seedBundledKnowledge(uploadedBy: string): Promise<{
     }
 
     try {
-      const absolutePath = path.join(process.cwd(), asset.relativePath);
+      const absolutePath = path.join(
+        /* turbopackIgnore: true */ process.cwd(),
+        asset.relativePath
+      );
       const buffer = await readFile(absolutePath);
       const extractedText = await extractKnowledgeText(
         buffer,

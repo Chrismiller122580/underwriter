@@ -59,7 +59,7 @@ export async function verifySessionToken(
 }
 
 export async function getSessionFromCookies(): Promise<Session | null> {
-  const token = cookies().get(SESSION_COOKIE)?.value;
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   return verifySessionToken(token);
 }

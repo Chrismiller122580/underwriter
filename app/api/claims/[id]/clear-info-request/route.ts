@@ -9,11 +9,11 @@ import { logger } from '@/lib/logger';
 export const dynamic = 'force-dynamic';
 
 type RouteContext = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export async function POST(_request: Request, context: RouteContext) {
-  const { id } = context.params;
+  const { id } = await context.params;
 
   const session = await getSessionFromCookies();
   if (!session || !canUnderwrite(session.role)) {

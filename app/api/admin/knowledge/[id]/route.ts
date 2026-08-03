@@ -8,7 +8,7 @@ import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
-type RouteContext = { params: { id: string } };
+type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, context: RouteContext) {
   const session = await getSessionFromCookies();
@@ -16,13 +16,15 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  const { id } = await context.params;
+
   try {
     const body = (await request.json()) as { active?: boolean };
     if (typeof body.active !== 'boolean') {
       return NextResponse.json({ error: 'active boolean is required.' }, { status: 400 });
     }
 
-    const document = await setKnowledgeDocumentActive(context.params.id, body.active);
+    const document = await setKnowledgeDocumentActive(id, body.active);
     if (!document) {
       return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
     }
@@ -30,7 +32,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ document });
   } catch (error) {
     logger.error('PATCH /api/admin/knowledge/[id] failed', {
-      id: context.params.id,
+      id,
       error: error instanceof Error ? error.message : 'unknown',
     });
     return NextResponse.json({ error: 'Failed to update document' }, { status: 500 });
@@ -43,21 +45,23 @@ export async function DELETE(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  const { id } = await context.params;
+
   try {
-    const deleted = await deleteKnowledgeDocument(context.params.id);
+    const deleted = await deleteKnowledgeDocument(id);
     if (!deleted) {
       return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
     }
 
     logger.info('Knowledge document deleted', {
-      id: context.params.id,
+      id,
       deletedBy: session.email,
     });
 
     return NextResponse.json({ ok: true });
   } catch (error) {
     logger.error('DELETE /api/admin/knowledge/[id] failed', {
-      id: context.params.id,
+      id,
       error: error instanceof Error ? error.message : 'unknown',
     });
     return NextResponse.json({ error: 'Failed to delete document' }, { status: 500 });

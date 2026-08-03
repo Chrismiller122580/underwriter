@@ -2,7 +2,7 @@
 
 Vehicle warranty claims intake, document upload, and automated policy underwriting.
 
-**Stack:** Next.js 14 · Vercel Postgres (Neon) · Vercel Blob · JWT Auth · GitHub Actions · Vercel
+**Stack:** Next.js 16 · React 19 · Vercel Postgres (Neon) · Vercel Blob · JWT Auth · Grok AI · GitHub Actions · Vercel
 
 ---
 
@@ -36,6 +36,8 @@ Vehicle warranty claims intake, document upload, and automated policy underwriti
 
 ## Local development (Codespaces)
 
+Requires **Node.js 20.9+**.
+
 ```bash
 docker compose up -d postgres
 cp .env.example .env.local
@@ -51,6 +53,12 @@ npm run dev
 | `SUPERVISOR_PASSWORD` | Optional supervisor password |
 
 **Default local login:** password from `ADJUSTER_PASSWORD` in `.env.local`
+
+```bash
+npm test          # unit tests (vitest)
+npm run lint      # ESLint flat config
+npm run build     # production build (Turbopack)
+```
 
 ---
 
@@ -88,7 +96,7 @@ npm run dev
 
 ---
 
-## API routes
+## API routes (selected)
 
 | Route | Auth | Description |
 |-------|------|-------------|
@@ -96,12 +104,19 @@ npm run dev
 | `POST /api/claims/lookup-policy` | Public (rate limited) | Resolve contract type from policy number |
 | `POST /api/claims/extract` | Public (rate limited) | Extract form data from portal screenshot |
 | `GET /api/claims` | Adjuster | List claims |
+| `GET /api/claims/stats` | Adjuster | Queue stats for dashboard |
 | `POST /api/claims/:id/underwrite` | Adjuster | AI + rule-based underwriting |
 | `POST /api/claims/:id/analyze` | Adjuster | Run/re-run AI analysis |
+| `POST /api/claims/:id/decide` | Adjuster | Manual approve / deny / review |
+| `POST /api/claims/:id/request-info` | Adjuster | Request more info from claimant |
+| `GET /api/claims/:id/events` | Adjuster | Claim activity timeline |
+| `POST /api/fwis/import` | Adjuster | Import claim from FWIS |
+| `GET /api/public/claim-status` | Public | Status lookup by tracking code + last name |
 | `POST /api/auth/login` | Public | Sign in |
 | `POST /api/auth/logout` | Public | Sign out |
 | `GET /api/auth/session` | Public | Check session |
 | `GET /api/health` | Public | Health check |
+| `/api/admin/*` | Supervisor | Users, knowledge, toolbox, sandbox |
 
 ---
 
@@ -109,10 +124,10 @@ npm run dev
 
 ```
 app/              Pages + API routes
-components/       ClaimForm, ClaimsDashboard, LoginForm, Nav
-lib/              auth, claims-store, contract-rules, policy-lookup, underwrite
+components/       ClaimForm, ClaimsDashboard, LoginForm, AppNav, …
+lib/              auth, claims-store, contract-rules, client-api, fwis, underwrite
 contracts/        Freedom Warranty plan registration HTML (reference)
-middleware.ts     Protects /claims and adjuster API routes
+proxy.ts          Auth gate for /claims, /submit, /admin, and staff APIs
 ```
 
 ---
@@ -126,3 +141,5 @@ middleware.ts     Protects /claims and adjuster API routes
 | 3 — Frontend | ✅ |
 | 4 — Vercel + Postgres + Blob | ✅ |
 | 5 — Auth, rate limits, logging | ✅ |
+| 6 — Multi-user, OCR, public status, FWIS intake | ✅ |
+| 7 — Next.js 16 + React 19 | ✅ |

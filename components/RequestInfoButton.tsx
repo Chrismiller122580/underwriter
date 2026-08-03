@@ -1,6 +1,12 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import {
+  apiFetch,
+  isUnauthorized,
+  loginPath,
+} from '@/lib/client-api';
 import type { InfoRequestRecord } from '@/lib/info-request';
 
 export type RequestInfoResult = {
@@ -20,6 +26,7 @@ export function RequestInfoButton({
   existingRequest?: InfoRequestRecord | null;
   onComplete?: (result: RequestInfoResult) => void;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [clearing, setClearing] = useState(false);
@@ -55,7 +62,11 @@ export function RequestInfoButton({
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/claims/${claimId}/request-info`, {
+      const data = await apiFetch<{
+        status: string;
+        infoRequest: InfoRequestRecord;
+        updatedAt?: string;
+      }>(`/api/claims/${claimId}/request-info`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -65,22 +76,6 @@ export function RequestInfoButton({
         }),
       });
 
-      if (response.status === 401) {
-        window.location.href = '/login?next=/claims';
-        return;
-      }
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? 'Failed to request info');
-      }
-
-      const data = (await response.json()) as {
-        status: string;
-        infoRequest: InfoRequestRecord;
-        updatedAt?: string;
-      };
-
       onComplete?.({
         status: data.status,
         infoRequest: data.infoRequest,
@@ -88,6 +83,10 @@ export function RequestInfoButton({
       });
       setOpen(false);
     } catch (err) {
+      if (isUnauthorized(err)) {
+        router.push(loginPath('/claims'));
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Failed to request info');
     } finally {
       setLoading(false);
@@ -98,26 +97,13 @@ export function RequestInfoButton({
     setClearing(true);
     setError(null);
     try {
-      const response = await fetch(
-        `/api/claims/${claimId}/clear-info-request`,
-        { method: 'POST' }
-      );
-
-      if (response.status === 401) {
-        window.location.href = '/login?next=/claims';
-        return;
-      }
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? 'Failed to clear info request');
-      }
-
-      const data = (await response.json()) as {
+      const data = await apiFetch<{
         status: string;
         infoRequest: InfoRequestRecord | null;
         updatedAt?: string;
-      };
+      }>(`/api/claims/${claimId}/clear-info-request`, {
+        method: 'POST',
+      });
 
       onComplete?.({
         status: data.status,
@@ -128,6 +114,10 @@ export function RequestInfoButton({
       setNote('');
       setOpen(false);
     } catch (err) {
+      if (isUnauthorized(err)) {
+        router.push(loginPath('/claims'));
+        return;
+      }
       setError(
         err instanceof Error ? err.message : 'Failed to clear info request'
       );

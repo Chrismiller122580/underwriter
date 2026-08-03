@@ -38,6 +38,7 @@ jobs:
 
       - run: npm ci
       - run: npm run lint
+      - run: npm test
       - run: npm run build
         env:
           POSTGRES_URL: postgresql://postgres:pass@localhost:5432/warranty_claims

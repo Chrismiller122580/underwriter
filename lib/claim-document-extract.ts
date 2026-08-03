@@ -156,9 +156,9 @@ async function loadDocumentBuffer(
     if (!isAllowedClaimDocumentUrl(source)) {
       throw new Error('Local document path is not allowed');
     }
-    const abs = path.join(process.cwd(), source);
+    const abs = path.join(/* turbopackIgnore: true */ process.cwd(), source);
     // Prevent path traversal outside uploads/
-    const uploadsRoot = path.join(process.cwd(), 'uploads');
+    const uploadsRoot = path.join(/* turbopackIgnore: true */ process.cwd(), 'uploads');
     if (!abs.startsWith(uploadsRoot + path.sep) && abs !== uploadsRoot) {
       throw new Error('Document path escapes uploads directory');
     }

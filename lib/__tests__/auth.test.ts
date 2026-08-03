@@ -1,17 +1,16 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getConfiguredRoles } from '@/lib/auth';
 
-const originalEnv = { ...process.env };
-
 afterEach(() => {
-  process.env = { ...originalEnv };
+  vi.unstubAllEnvs();
 });
 
 describe('getConfiguredRoles', () => {
   it('requires a distinct supervisor password in production', () => {
-    process.env.NODE_ENV = 'production';
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('ADJUSTER_PASSWORD', 'adjuster-secret');
+    // Ensure production is not triggered via VERCEL alone and supervisor is unset
     delete process.env.VERCEL;
-    process.env.ADJUSTER_PASSWORD = 'adjuster-secret';
     delete process.env.SUPERVISOR_PASSWORD;
 
     const roles = getConfiguredRoles();
@@ -21,9 +20,9 @@ describe('getConfiguredRoles', () => {
   });
 
   it('allows adjuster password fallback for supervisor in development', () => {
-    process.env.NODE_ENV = 'development';
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('ADJUSTER_PASSWORD', 'shared-secret');
     delete process.env.VERCEL;
-    process.env.ADJUSTER_PASSWORD = 'shared-secret';
     delete process.env.SUPERVISOR_PASSWORD;
 
     const roles = getConfiguredRoles();

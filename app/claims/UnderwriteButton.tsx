@@ -1,7 +1,13 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { AiAnalysis } from '@/lib/ai-types';
+import {
+  apiFetch,
+  isUnauthorized,
+  loginPath,
+} from '@/lib/client-api';
 import type { ClaimRecord } from '@/lib/claims-store';
 
 export type UnderwriteResult = {
@@ -18,6 +24,7 @@ export function UnderwriteButton({
   claimId: string;
   onComplete?: (result: UnderwriteResult) => void;
 }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,28 +33,16 @@ export function UnderwriteButton({
     setError(null);
 
     try {
-      const response = await fetch(`/api/claims/${claimId}/underwrite`, {
-        method: 'POST',
-      });
-
-      if (response.status === 401) {
-        window.location.href = '/login?next=/claims';
-        return;
-      }
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? 'Underwriting failed');
-      }
-
-      const data = (await response.json()) as {
+      const data = await apiFetch<{
         status: string;
         aiAnalysis: AiAnalysis;
         underwriting?: ClaimRecord['underwriting'];
         reason: string;
         decision: string;
         aiReused?: boolean;
-      };
+      }>(`/api/claims/${claimId}/underwrite`, {
+        method: 'POST',
+      });
 
       onComplete?.({
         status: data.status,
@@ -60,6 +55,10 @@ export function UnderwriteButton({
         aiReused: Boolean(data.aiReused),
       });
     } catch (err) {
+      if (isUnauthorized(err)) {
+        router.push(loginPath('/claims'));
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Underwriting failed');
     } finally {
       setLoading(false);

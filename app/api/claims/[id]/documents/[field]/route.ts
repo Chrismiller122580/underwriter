@@ -10,7 +10,7 @@ import { FILE_FIELD_LABELS, FILE_FIELDS } from '@/lib/parse-claim-form';
 export const dynamic = 'force-dynamic';
 
 type RouteContext = {
-  params: { id: string; field: string };
+  params: Promise<{ id: string; field: string }>;
 };
 
 function contentTypeForField(field: string, fallback?: string | null) {
@@ -22,7 +22,7 @@ function contentTypeForField(field: string, fallback?: string | null) {
 }
 
 export async function GET(_request: Request, context: RouteContext) {
-  const { id, field } = context.params;
+  const { id, field } = await context.params;
 
   const session = await getSessionFromCookies();
   if (!session) {
@@ -53,7 +53,7 @@ export async function GET(_request: Request, context: RouteContext) {
     }
 
     if (rawUrl.startsWith('uploads/')) {
-      const diskPath = path.join(process.cwd(), rawUrl);
+      const diskPath = path.join(/* turbopackIgnore: true */ process.cwd(), rawUrl);
       const buffer = await readFile(diskPath);
 
       return new NextResponse(buffer, {

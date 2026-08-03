@@ -6,11 +6,11 @@ import { logger } from '@/lib/logger';
 export const dynamic = 'force-dynamic';
 
 type RouteContext = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export async function POST(request: Request, context: RouteContext) {
-  const { id } = context.params;
+  const { id } = await context.params;
   const force = new URL(request.url).searchParams.get('force') === 'true';
 
   const session = await getSessionFromCookies();

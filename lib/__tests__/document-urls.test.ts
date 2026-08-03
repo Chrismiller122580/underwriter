@@ -41,7 +41,7 @@ describe('sanitizeClaimForPortal', () => {
             'https://example.public.blob.vercel-storage.com/claims/x.pdf',
         },
       },
-    } as ClaimRecord;
+    } as unknown as ClaimRecord;
 
     const sanitized = sanitizeClaimForPortal(claim);
     expect(sanitized.claimDetails.attachedDocuments?.proofOfOwnership).toBe(

@@ -1,7 +1,13 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { AiAnalysis } from '@/lib/ai-types';
+import {
+  apiFetch,
+  isUnauthorized,
+  loginPath,
+} from '@/lib/client-api';
 
 export type AnalyzeResult = {
   aiAnalysis: AiAnalysis;
@@ -19,6 +25,7 @@ export function AnalyzeButton({
   label?: string;
   force?: boolean;
 }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,29 +37,21 @@ export function AnalyzeButton({
       const url = force
         ? `/api/claims/${claimId}/analyze?force=true`
         : `/api/claims/${claimId}/analyze`;
-      const response = await fetch(url, {
-        method: 'POST',
-      });
-
-      if (response.status === 401) {
-        window.location.href = '/login?next=/claims';
-        return;
-      }
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? 'AI analysis failed');
-      }
-
-      const data = (await response.json()) as {
+      const data = await apiFetch<{
         aiAnalysis: AiAnalysis;
         reused?: boolean;
-      };
+      }>(url, {
+        method: 'POST',
+      });
       onComplete?.({
         aiAnalysis: data.aiAnalysis,
         reused: Boolean(data.reused),
       });
     } catch (err) {
+      if (isUnauthorized(err)) {
+        router.push(loginPath('/claims'));
+        return;
+      }
       setError(err instanceof Error ? err.message : 'AI analysis failed');
     } finally {
       setLoading(false);

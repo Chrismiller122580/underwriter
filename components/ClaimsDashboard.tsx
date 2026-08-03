@@ -1,9 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CONTRACT_TYPES } from '@/lib/contracts/types';
-import type { ClaimPortalStats } from '@/lib/claims-store';
 import {
   filterClaims,
   sortClaims,
@@ -11,6 +10,13 @@ import {
   type ContractFilter,
   type PortalClaim,
 } from '@/lib/claim-portal';
+import {
+  apiFetch,
+  isUnauthorized,
+  loginPath,
+} from '@/lib/client-api';
+import type { ClaimPortalStats } from '@/lib/claims-store';
+import { CONTRACT_TYPES } from '@/lib/contracts/types';
 import { ClaimCard, type ClaimPatch } from './ClaimCard';
 import {
   OnboardingTutorial,
@@ -32,6 +38,7 @@ type ClaimsPage = {
 };
 
 export function ClaimsDashboard() {
+  const router = useRouter();
   const tutorial = useOnboardingTutorial();
   const [claims, setClaims] = useState<PortalClaim[]>([]);
   const [stats, setStats] = useState<ClaimPortalStats | null>(null);
@@ -54,19 +61,16 @@ export function ClaimsDashboard() {
       const url = cursor
         ? `/api/claims?cursor=${encodeURIComponent(cursor)}`
         : '/api/claims';
-      const response = await fetch(url);
-      if (response.status === 401) {
-        window.location.href = '/login?next=/claims';
-        return;
-      }
-      if (!response.ok) throw new Error('Failed to load claims');
-
-      const data = (await response.json()) as ClaimsPage;
+      const data = await apiFetch<ClaimsPage>(url);
       setClaims((current) =>
         cursor ? [...current, ...data.claims] : data.claims
       );
       setNextCursor(data.nextCursor);
     } catch (err) {
+      if (isUnauthorized(err)) {
+        router.push(loginPath('/claims'));
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Failed to load claims');
     } finally {
       if (loadingMorePage) {
@@ -75,22 +79,21 @@ export function ClaimsDashboard() {
         setLoading(false);
       }
     }
-  }, []);
+  }, [router]);
 
   const loadStats = useCallback(async () => {
     try {
-      const response = await fetch('/api/claims/stats');
-      if (response.status === 401) {
-        window.location.href = '/login?next=/claims';
+      const data = await apiFetch<ClaimPortalStats>('/api/claims/stats');
+      setStats(data);
+    } catch (err) {
+      if (isUnauthorized(err)) {
+        router.push(loginPath('/claims'));
         return;
       }
-      if (!response.ok) throw new Error('Failed to load claim stats');
-      setStats((await response.json()) as ClaimPortalStats);
-    } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load claim stats');
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   const refreshWorkbench = useCallback(async () => {
     setLoading(true);

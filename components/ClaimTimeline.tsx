@@ -1,7 +1,13 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { ClaimEventRecord } from '@/lib/claim-events';
+import {
+  apiFetch,
+  isUnauthorized,
+  loginPath,
+} from '@/lib/client-api';
 
 function formatWhen(value: string) {
   try {
@@ -23,6 +29,7 @@ export function ClaimTimeline({
   /** Bump to re-fetch after actions. */
   refreshKey?: number;
 }) {
+  const router = useRouter();
   const [events, setEvents] = useState<ClaimEventRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,22 +38,20 @@ export function ClaimTimeline({
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/claims/${claimId}/events`);
-      if (response.status === 401) {
-        window.location.href = '/login?next=/claims';
-        return;
-      }
-      if (!response.ok) {
-        throw new Error('Failed to load history');
-      }
-      const data = (await response.json()) as { events: ClaimEventRecord[] };
+      const data = await apiFetch<{ events: ClaimEventRecord[] }>(
+        `/api/claims/${claimId}/events`
+      );
       setEvents(data.events ?? []);
     } catch (err) {
+      if (isUnauthorized(err)) {
+        router.push(loginPath('/claims'));
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Failed to load history');
     } finally {
       setLoading(false);
     }
-  }, [claimId]);
+  }, [claimId, router]);
 
   useEffect(() => {
     void load();

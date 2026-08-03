@@ -1,6 +1,12 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import {
+  apiFetch,
+  isUnauthorized,
+  loginPath,
+} from '@/lib/client-api';
 import type { ClaimRecord } from '@/lib/claims-store';
 
 export type ManualDecisionResult = {
@@ -25,6 +31,7 @@ export function ManualDecisionButton({
   currentStatus: string;
   onComplete?: (result: ManualDecisionResult) => void;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [decision, setDecision] =
     useState<(typeof DECISIONS)[number]['id']>('under_review');
@@ -36,28 +43,16 @@ export function ManualDecisionButton({
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/claims/${claimId}/decide`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ decision, reason: reason.trim() }),
-      });
-
-      if (response.status === 401) {
-        window.location.href = '/login?next=/claims';
-        return;
-      }
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? 'Manual decision failed');
-      }
-
-      const data = (await response.json()) as {
+      const data = await apiFetch<{
         status: string;
         underwriting: NonNullable<ClaimRecord['underwriting']>;
         infoRequest?: ClaimRecord['infoRequest'] | null;
         updatedAt?: string;
-      };
+      }>(`/api/claims/${claimId}/decide`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision, reason: reason.trim() }),
+      });
 
       onComplete?.({
         status: data.status,
@@ -68,6 +63,10 @@ export function ManualDecisionButton({
       setOpen(false);
       setReason('');
     } catch (err) {
+      if (isUnauthorized(err)) {
+        router.push(loginPath('/claims'));
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Manual decision failed');
     } finally {
       setLoading(false);
