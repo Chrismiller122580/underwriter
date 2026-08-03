@@ -3,14 +3,18 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { OnboardingTutorial } from '@/components/OnboardingTutorial';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { TutorialToggle } from '@/components/TutorialToggle';
 import {
+  TUTORIAL_CHANGE_EVENT,
   defaultTutorialState,
   emitTutorialChange,
   getTutorialUserKey,
   readTutorialState,
+  shouldAutoOpenTutorial,
   writeTutorialState,
+  type TutorialState,
 } from '@/lib/onboarding-tutorial';
 
 type Session = {
@@ -51,6 +55,7 @@ export function AppNav() {
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [tutorialEnabled, setTutorialEnabled] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   useEffect(() => {
     setSessionLoaded(false);
@@ -66,12 +71,29 @@ export function AppNav() {
   useEffect(() => {
     if (!session?.authenticated || !tutorialUserKey) {
       setTutorialEnabled(false);
+      setTutorialOpen(false);
       return;
     }
 
     const stored = readTutorialState(tutorialUserKey) ?? defaultTutorialState();
     setTutorialEnabled(stored.enabled || !stored.completed);
+    setTutorialOpen(shouldAutoOpenTutorial(stored));
   }, [session?.authenticated, session?.email, session?.role, tutorialUserKey]);
+
+  useEffect(() => {
+    if (!tutorialUserKey) return;
+
+    function handleTutorialChange(event: Event) {
+      const detail = (event as CustomEvent<TutorialState>).detail;
+      if (!detail) return;
+      setTutorialEnabled(detail.enabled || !detail.completed);
+      setTutorialOpen(shouldAutoOpenTutorial(detail));
+    }
+
+    window.addEventListener(TUTORIAL_CHANGE_EVENT, handleTutorialChange);
+    return () =>
+      window.removeEventListener(TUTORIAL_CHANGE_EVENT, handleTutorialChange);
+  }, [tutorialUserKey]);
 
   function handleTutorialToggle(enabled: boolean) {
     if (!tutorialUserKey) return;
@@ -81,6 +103,21 @@ export function AppNav() {
     writeTutorialState(tutorialUserKey, next);
     emitTutorialChange(next);
     setTutorialEnabled(enabled);
+    setTutorialOpen(enabled);
+  }
+
+  function handleTutorialOpenChange(open: boolean) {
+    setTutorialOpen(open);
+    if (!tutorialUserKey) return;
+    if (open) {
+      const stored = readTutorialState(tutorialUserKey) ?? defaultTutorialState();
+      const next = { completed: stored.completed, enabled: true };
+      writeTutorialState(tutorialUserKey, next);
+      setTutorialEnabled(true);
+      return;
+    }
+    const stored = readTutorialState(tutorialUserKey) ?? defaultTutorialState();
+    setTutorialEnabled(stored.enabled || !stored.completed);
   }
 
   useEffect(() => {
@@ -136,6 +173,15 @@ export function AppNav() {
       : '/login';
 
   return (
+    <>
+    {isAuthenticated ? (
+      <OnboardingTutorial
+        open={tutorialOpen}
+        onOpenChange={handleTutorialOpenChange}
+        userKey={tutorialUserKey}
+        role={session?.role}
+      />
+    ) : null}
     <header className="app-header">
       <div className="nav-inner">
         <Link href="/" className="nav-brand" aria-label="FWCUT home">
@@ -248,5 +294,6 @@ export function AppNav() {
         </div>
       </nav>
     </header>
+    </>
   );
 }

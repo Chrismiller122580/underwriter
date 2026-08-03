@@ -18,10 +18,6 @@ import {
 import type { ClaimPortalStats } from '@/lib/claims-store';
 import { CONTRACT_TYPES } from '@/lib/contracts/types';
 import { ClaimCard, type ClaimPatch } from './ClaimCard';
-import {
-  OnboardingTutorial,
-  useOnboardingTutorial,
-} from './OnboardingTutorial';
 
 const QUEUE_FILTERS: { id: ClaimFilter; label: string; tone?: 'pending' | 'denied' }[] = [
   { id: 'action_needed', label: 'Action needed', tone: 'pending' },
@@ -39,7 +35,6 @@ type ClaimsPage = {
 
 export function ClaimsDashboard() {
   const router = useRouter();
-  const tutorial = useOnboardingTutorial();
   const [claims, setClaims] = useState<PortalClaim[]>([]);
   const [stats, setStats] = useState<ClaimPortalStats | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -213,13 +208,7 @@ export function ClaimsDashboard() {
   }
 
   return (
-    <>
-      <OnboardingTutorial
-        open={tutorial.open}
-        onOpenChange={tutorial.setTutorialOpen}
-        userKey={tutorial.userKey}
-      />
-      <div className="adjuster-layout">
+    <div className="adjuster-layout">
       <aside className="adjuster-sidebar">
         <section className="adjuster-sidebar-section">
           <h2 className="adjuster-sidebar-title">Queue focus</h2>
@@ -419,7 +408,6 @@ export function ClaimsDashboard() {
         )}
       </div>
     </div>
-    </>
   );
 }
 

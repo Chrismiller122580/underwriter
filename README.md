@@ -31,6 +31,7 @@ Vehicle warranty claims intake, document upload, and automated policy underwriti
 | **FWIS intake** | Primary path: contract # + claim # import from FWIS (screenshots are fallback only) |
 | **AI underwriting** | Grok risk scoring, fraud detection, smart recommendations |
 | **Auto analysis** | Background AI scan on every new claim submission |
+| **Staff tutorial** | In-app guide (header Tutorial toggle) for queue, AI, intake/FWIS, and supervisor tools — not public |
 
 ---
 

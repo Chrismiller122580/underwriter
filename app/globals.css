@@ -2964,6 +2964,10 @@ html.dark .fwis-import-section {
   color: var(--text-heading);
 }
 
+.tutorial-cta {
+  margin: 0.85rem 0 0;
+}
+
 .tutorial-steps {
   display: flex;
   gap: 8px;

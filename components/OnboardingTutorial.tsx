@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   TUTORIAL_CHANGE_EVENT,
   defaultTutorialState,
@@ -9,67 +9,35 @@ import {
   getTutorialUserKey,
   readTutorialState,
   shouldAutoOpenTutorial,
+  stepsForRole,
   writeTutorialState,
+  type StaffRole,
   type TutorialState,
 } from '@/lib/onboarding-tutorial';
-
-type Session = {
-  authenticated: boolean;
-  email?: string;
-  role?: 'adjuster' | 'supervisor';
-};
-
-type TutorialStep = {
-  title: string;
-  body: string;
-  tip?: string;
-};
-
-const STEPS: TutorialStep[] = [
-  {
-    title: 'Welcome to the workbench',
-    body:
-      'This is your underwriting command center. Claims land here after staff intake, and you triage them by priority before making a decision.',
-    tip: 'Use the sidebar counts to see what needs attention first.',
-  },
-  {
-    title: 'Work the action queue',
-    body:
-      'Start with Action needed and No AI scan. Each claim card shows contract context, documentation status, and AI flags when you expand it.',
-    tip: 'Search by name, policy number, VIN, or repair description from the toolbar.',
-  },
-  {
-    title: 'Run AI Scan first',
-    body:
-      'Before underwriting, run AI Scan on a claim. Grok assesses risk, coverage fit, missing documents, and guideline conflicts.',
-    tip: 'Claims without a scan are blocked from final underwriting.',
-  },
-  {
-    title: 'Review, then underwrite',
-    body:
-      'Check contract rules, attached documents, and AI recommendations. When ready, run AI Underwrite for the combined rule + AI decision.',
-    tip: 'Approved and denied claims cannot be re-underwritten.',
-  },
-  {
-    title: 'Submit new claims',
-    body:
-      'Use New Claim Intake to enter claims on behalf of customers. Policy lookup identifies the contract type; screenshot autofill speeds data entry.',
-    tip: 'Claim submission is staff-only — sign in is required.',
-  },
-];
 
 type OnboardingTutorialProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userKey: string | null;
+  role?: StaffRole | string | null;
 };
 
 export function OnboardingTutorial({
   open,
   onOpenChange,
   userKey,
+  role,
 }: OnboardingTutorialProps) {
+  const steps = useMemo(() => stepsForRole(role), [role]);
   const [stepIndex, setStepIndex] = useState(0);
+
+  useEffect(() => {
+    if (open) setStepIndex(0);
+  }, [open, role]);
+
+  useEffect(() => {
+    setStepIndex((current) => Math.min(current, Math.max(0, steps.length - 1)));
+  }, [steps.length]);
 
   const persist = useCallback(
     (state: TutorialState) => {
@@ -92,10 +60,11 @@ export function OnboardingTutorial({
     closeTutorial(true);
   }
 
-  if (!open) return null;
+  if (!open || steps.length === 0) return null;
 
-  const step = STEPS[stepIndex];
-  const isLast = stepIndex === STEPS.length - 1;
+  const safeIndex = Math.min(stepIndex, steps.length - 1);
+  const step = steps[safeIndex];
+  const isLast = safeIndex === steps.length - 1;
 
   return (
     <div className="tutorial-overlay" role="presentation">
@@ -107,10 +76,10 @@ export function OnboardingTutorial({
         aria-describedby="tutorial-body"
       >
         <div className="tutorial-header">
-          <p className="tutorial-eyebrow">New user guide</p>
+          <p className="tutorial-eyebrow">Staff guide · {step.section}</p>
           <h2 id="tutorial-title">{step.title}</h2>
           <p className="tutorial-progress" aria-live="polite">
-            Step {stepIndex + 1} of {STEPS.length}
+            Step {safeIndex + 1} of {steps.length}
           </p>
         </div>
 
@@ -121,16 +90,23 @@ export function OnboardingTutorial({
               <strong>Tip:</strong> {step.tip}
             </p>
           )}
+          {step.href && (
+            <p className="tutorial-cta">
+              <Link href={step.href} className="button button-secondary button-sm">
+                {step.hrefLabel ?? 'Open page'}
+              </Link>
+            </p>
+          )}
         </div>
 
         <div className="tutorial-steps" aria-hidden="true">
-          {STEPS.map((item, index) => (
+          {steps.map((item, index) => (
             <span
-              key={item.title}
+              key={item.id}
               className={
-                index === stepIndex
+                index === safeIndex
                   ? 'tutorial-step-dot active'
-                  : index < stepIndex
+                  : index < safeIndex
                     ? 'tutorial-step-dot done'
                     : 'tutorial-step-dot'
               }
@@ -150,7 +126,7 @@ export function OnboardingTutorial({
             <button
               type="button"
               className="button button-secondary button-sm"
-              disabled={stepIndex === 0}
+              disabled={safeIndex === 0}
               onClick={() => setStepIndex((current) => Math.max(0, current - 1))}
             >
               Back
@@ -164,7 +140,7 @@ export function OnboardingTutorial({
                 type="button"
                 className="button button-sm"
                 onClick={() =>
-                  setStepIndex((current) => Math.min(STEPS.length - 1, current + 1))
+                  setStepIndex((current) => Math.min(steps.length - 1, current + 1))
                 }
               >
                 Next
@@ -175,11 +151,9 @@ export function OnboardingTutorial({
 
         {isLast && (
           <p className="tutorial-footer-note">
-            Intake lives at{' '}
-            <Link href="/submit" className="tutorial-inline-link">
-              Submit Claim
-            </Link>
-            . Turn this guide back on anytime with the Tutorial toggle in the header.
+            Turn this guide back on anytime with the Tutorial toggle in the header.
+            It works on Dashboard, Submit Claim, and Supervisor pages—not on public
+            claim status.
           </p>
         )}
       </div>
@@ -187,8 +161,16 @@ export function OnboardingTutorial({
   );
 }
 
+/**
+ * Optional hook for pages that still need tutorial state without owning the modal.
+ * Prefer AppNav-mounted tutorial for open/close UX.
+ */
 export function useOnboardingTutorial() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<{
+    authenticated: boolean;
+    email?: string;
+    role?: StaffRole;
+  } | null>(null);
   const [open, setOpen] = useState(false);
   const [tutorialEnabled, setTutorialEnabled] = useState(false);
   const [ready, setReady] = useState(false);
@@ -198,7 +180,7 @@ export function useOnboardingTutorial() {
   useEffect(() => {
     fetch('/api/auth/session')
       .then((res) => (res.ok ? res.json() : { authenticated: false }))
-      .then((data: Session) => setSession(data))
+      .then((data) => setSession(data))
       .catch(() => setSession({ authenticated: false }));
   }, []);
 
@@ -272,6 +254,7 @@ export function useOnboardingTutorial() {
     open,
     tutorialEnabled,
     userKey,
+    role: session?.role,
     setTutorialOpen,
     toggleTutorialEnabled,
   };
