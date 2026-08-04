@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getConfiguredRoles } from '@/lib/auth';
+import {
+  formatRoleLabel,
+  getConfiguredRoles,
+  isReviewerRole,
+  normalizeUserRole,
+} from '@/lib/auth';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -28,5 +33,18 @@ describe('getConfiguredRoles', () => {
     const roles = getConfiguredRoles();
     expect(roles.supervisor).toBe(true);
     expect(roles.supervisorUsesAdjusterFallback).toBe(true);
+  });
+});
+
+describe('reviewer / adjuster role alias', () => {
+  it('treats reviewer as the same role as adjuster', () => {
+    expect(normalizeUserRole('reviewer')).toBe('adjuster');
+    expect(normalizeUserRole('adjuster')).toBe('adjuster');
+    expect(isReviewerRole('reviewer')).toBe(true);
+    expect(isReviewerRole('adjuster')).toBe(true);
+    expect(isReviewerRole('supervisor')).toBe(false);
+    expect(formatRoleLabel('adjuster')).toBe('Reviewer');
+    expect(formatRoleLabel('reviewer')).toBe('Reviewer');
+    expect(formatRoleLabel('supervisor')).toBe('Supervisor');
   });
 });

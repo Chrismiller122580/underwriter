@@ -151,7 +151,7 @@ export async function seedDefaultUsersIfEmpty(): Promise<void> {
   try {
     await createUser({
       email: 'adjuster@fwcut.local',
-      name: 'Default Adjuster',
+      name: 'Default Reviewer',
       role: 'adjuster',
       password: adjusterPassword,
     });

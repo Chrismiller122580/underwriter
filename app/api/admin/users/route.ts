@@ -12,7 +12,10 @@ export const dynamic = 'force-dynamic';
 const createSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1).max(120),
-  role: z.enum(['adjuster', 'supervisor']),
+  // reviewer is an alias for adjuster (same underwriting role)
+  role: z
+    .enum(['adjuster', 'supervisor', 'reviewer'])
+    .transform((value) => (value === 'reviewer' ? 'adjuster' : value)),
   password: z.string().min(8).max(200),
 });
 

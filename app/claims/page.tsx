@@ -13,12 +13,12 @@ export default async function ClaimsPage() {
       <header className="adjuster-hero">
         <div className="adjuster-hero-inner">
           <div className="adjuster-hero-copy">
-            <p className="adjuster-eyebrow">Adjuster Workbench</p>
+            <p className="adjuster-eyebrow">Reviewer Workbench</p>
             <h1 className="adjuster-title">Underwriting Command Center</h1>
             <p className="adjuster-lead">
               Triage claims by priority, review contract rules and AI signals,
               then underwrite with confidence. Run an AI scan before every
-              final decision.
+              final decision. Reviewer and adjuster are the same staff role.
             </p>
           </div>
           <div className="adjuster-hero-actions">

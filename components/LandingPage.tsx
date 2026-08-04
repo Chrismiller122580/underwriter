@@ -74,7 +74,7 @@ export function LandingPage() {
             </article>
 
             <article className="landing-audience-card landing-audience-card-staff">
-              <p className="landing-card-label">For adjusters &amp; supervisors</p>
+              <p className="landing-card-label">For reviewers &amp; supervisors</p>
               <h3>Review with AI support</h3>
               <ul>
                 <li>Central dashboard for all submitted claims</li>
@@ -113,10 +113,11 @@ export function LandingPage() {
             </div>
             <div className="landing-step">
               <span className="landing-step-num">3</span>
-              <h3>Adjuster decision</h3>
+              <h3>Reviewer decision</h3>
               <p>
                 Your team runs underwriting, reviews AI insights, and makes the
-                final approve, deny, or hold decision.
+                final approve, deny, or hold decision. Reviewer and adjuster are
+                the same role.
               </p>
             </div>
           </div>

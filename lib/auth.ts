@@ -5,7 +5,34 @@ import { z } from 'zod';
 import { isProductionDeploy } from '@/lib/env';
 
 export const SESSION_COOKIE = 'fwcut_session';
+/**
+ * Stored role keys. `adjuster` is the underwriting / claim-review staff role
+ * (product label: "Reviewer"). Supervisors get Admin Tools.
+ */
 export type UserRole = 'adjuster' | 'supervisor';
+
+/** UI labels — adjuster and reviewer are the same role. */
+export const ROLE_LABELS: Record<UserRole, string> = {
+  adjuster: 'Reviewer',
+  supervisor: 'Supervisor',
+};
+
+/**
+ * Normalize user/input role names. "reviewer" is an alias for adjuster.
+ */
+export function normalizeUserRole(role: string | undefined | null): UserRole | null {
+  if (!role) return null;
+  const key = role.trim().toLowerCase();
+  if (key === 'adjuster' || key === 'reviewer') return 'adjuster';
+  if (key === 'supervisor') return 'supervisor';
+  return null;
+}
+
+export function formatRoleLabel(role: string | undefined | null): string {
+  const normalized = normalizeUserRole(role);
+  if (!normalized) return role?.trim() || 'Staff';
+  return ROLE_LABELS[normalized];
+}
 
 export type Session = {
   email: string;
@@ -14,7 +41,9 @@ export type Session = {
   name?: string;
 };
 
-const userRoleSchema = z.enum(['adjuster', 'supervisor']);
+const userRoleSchema = z.enum(['adjuster', 'supervisor', 'reviewer']).transform(
+  (value) => (value === 'reviewer' ? 'adjuster' : value) as UserRole
+);
 
 function getSecret() {
   const secret = process.env.AUTH_SECRET;
@@ -124,7 +153,7 @@ export function verifyLoginPassword(
     return {
       email: 'adjuster@fwcut.local',
       role: 'adjuster',
-      name: 'Default Adjuster',
+      name: 'Default Reviewer',
     };
   }
 
@@ -138,6 +167,7 @@ export function verifyAdjusterPassword(password: string): Session | null {
   return verifyLoginPassword(password, 'adjuster');
 }
 
+/** Reviewers (adjuster) and supervisors can underwrite claims. */
 export function canUnderwrite(role: UserRole): boolean {
   return role === 'adjuster' || role === 'supervisor';
 }
@@ -148,4 +178,9 @@ export function canManageKnowledge(role: UserRole): boolean {
 
 export function canManageUsers(role: UserRole): boolean {
   return role === 'supervisor';
+}
+
+/** True for the underwriting staff role (adjuster / reviewer). */
+export function isReviewerRole(role: UserRole | string | undefined | null): boolean {
+  return normalizeUserRole(role) === 'adjuster';
 }

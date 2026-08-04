@@ -22,15 +22,18 @@ const loginSchema = z.object({
    * Used only for shared env-password fallback when no matching DB user.
    * Omit to auto-detect (try supervisor password, then adjuster).
    */
-  role: z.enum(['adjuster', 'supervisor']).optional(),
+  // "reviewer" is accepted as an alias for adjuster (same role).
+  role: z.enum(['adjuster', 'supervisor', 'reviewer']).optional(),
 });
 
 function tryLegacyEnvLogin(
   password: string,
-  preferredRole?: UserRole
+  preferredRole?: UserRole | 'reviewer'
 ): Session | null {
-  if (preferredRole) {
-    return verifyLoginPassword(password, preferredRole);
+  const role: UserRole | undefined =
+    preferredRole === 'reviewer' ? 'adjuster' : preferredRole;
+  if (role) {
+    return verifyLoginPassword(password, role);
   }
   // Prefer supervisor match so shared-password setups can reach admin tools.
   return (
@@ -87,7 +90,10 @@ export async function POST(request: Request) {
     // 2) Legacy shared passwords (bootstrap / emergency)
     if (!session) {
       const configured = getConfiguredRoles();
-      const preferredRole = body.role as UserRole | undefined;
+      const preferredRole =
+        body.role === 'reviewer'
+          ? ('adjuster' as UserRole)
+          : (body.role as UserRole | undefined);
 
       if (preferredRole === 'supervisor' && !configured.supervisor) {
         return NextResponse.json(
@@ -104,7 +110,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             error:
-              'Adjuster login is not configured. Set ADJUSTER_PASSWORD or create a user account.',
+              'Reviewer login is not configured. Set ADJUSTER_PASSWORD or create a user account.',
           },
           { status: 503 }
         );

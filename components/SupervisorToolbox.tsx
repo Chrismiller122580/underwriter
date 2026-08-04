@@ -82,7 +82,7 @@ const TABS: { id: TabId; label: string; hint: string }[] = [
   { id: 'contracts', label: 'Contract Intel', hint: 'Prefixes, waiting periods, rules' },
   { id: 'prompt', label: 'Prompt Inspector', hint: 'See exactly what Grok receives' },
   { id: 'bulk', label: 'Bulk AI Ops', hint: 'Re-run analysis across claims' },
-  { id: 'users', label: 'Staff Users', hint: 'Named adjuster and supervisor accounts' },
+  { id: 'users', label: 'Staff Users', hint: 'Reviewers and supervisors' },
 ];
 
 const DEFAULT_SCENARIO = {

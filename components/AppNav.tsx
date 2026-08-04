@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { OnboardingTutorial } from '@/components/OnboardingTutorial';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { TutorialToggle } from '@/components/TutorialToggle';
+import { formatRoleLabel } from '@/lib/auth';
 import {
   TUTORIAL_CHANGE_EVENT,
   defaultTutorialState,
@@ -221,9 +222,15 @@ export function AppNav() {
                   className={
                     isSupervisor ? 'nav-role nav-role-supervisor' : 'nav-role'
                   }
-                  title={session?.email}
+                  title={
+                    session?.email
+                      ? `${session.email} · ${formatRoleLabel(session.role)}`
+                      : formatRoleLabel(session?.role)
+                  }
                 >
-                  {session?.name || session?.email || session?.role}
+                  {session?.name ||
+                    session?.email ||
+                    formatRoleLabel(session?.role)}
                 </span>
                 <button
                   type="button"
@@ -268,9 +275,15 @@ export function AppNav() {
                   className={
                     isSupervisor ? 'nav-role nav-role-supervisor' : 'nav-role'
                   }
-                  title={session?.email}
+                  title={
+                    session?.email
+                      ? `${session.email} · ${formatRoleLabel(session.role)}`
+                      : formatRoleLabel(session?.role)
+                  }
                 >
-                  {session?.name || session?.email || session?.role}
+                  {session?.name ||
+                    session?.email ||
+                    formatRoleLabel(session?.role)}
                 </span>
                 <button
                   type="button"

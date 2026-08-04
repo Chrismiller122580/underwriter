@@ -85,7 +85,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Welcome to the workbench',
     body:
       'This is your underwriting command center. Claims arrive after staff intake. You triage by priority, gather missing documents, then decide with rules and AI.',
-    tip: 'Use Dashboard for the queue and Submit Claim for new intake. Supervisors also get Admin Tools.',
+    tip: 'Use Dashboard for the queue and Submit Claim for new intake. Reviewers underwrite claims; supervisors also get Admin Tools. Reviewer = adjuster role.',
     href: '/claims',
     hrefLabel: 'Open Dashboard',
   },
@@ -176,8 +176,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     section: 'Supervisor',
     title: 'Manage staff users',
     body:
-      'Create named adjuster and supervisor accounts. Prefer named users in production over shared env passwords.',
-    tip: 'Supervisors can manage users; adjusters cannot.',
+      'Create named Reviewer and Supervisor accounts. Reviewer is the claim underwriting role (same as adjuster). Prefer named users in production over shared env passwords.',
+    tip: 'Supervisors can manage users; reviewers cannot.',
     href: '/admin/toolbox',
     hrefLabel: 'Open Admin Tools',
     roles: ['supervisor'],

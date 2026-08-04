@@ -9,6 +9,7 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  /** Shared-password bootstrap only. adjuster === reviewer in the product. */
   const [role, setRole] = useState<LoginRole>('supervisor');
   const [useSharedPassword, setUseSharedPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,8 +68,9 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
     <form onSubmit={handleSubmit} style={{ marginTop: 24 }}>
       <p className="form-hint">
         Sign in with your staff email and password. Seeded defaults use{' '}
-        <code>adjuster@fwcut.local</code> / <code>supervisor@fwcut.local</code>.
-        Supervisors get the full admin toolbox.
+        <code>adjuster@fwcut.local</code> (Reviewer) /{' '}
+        <code>supervisor@fwcut.local</code>. The Reviewer role is the claim
+        underwriting role (same as adjuster). Supervisors get Admin Tools.
       </p>
 
       {!useSharedPassword && (
@@ -121,7 +123,7 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
                 setError(null);
               }}
             >
-              Adjuster
+              Reviewer
             </button>
             <button
               type="button"
@@ -139,7 +141,8 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
           <p className="form-hint">
             Matches <code>ADJUSTER_PASSWORD</code> /{' '}
             <code>SUPERVISOR_PASSWORD</code> when named users are unavailable.
-            Choose <strong>Supervisor</strong> for admin tools.
+            <strong> Reviewer</strong> = claim underwriting (adjuster). Choose{' '}
+            <strong>Supervisor</strong> for Admin Tools.
           </p>
         </>
       )}

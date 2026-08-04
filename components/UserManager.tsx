@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { formatRoleLabel } from '@/lib/auth';
 
 type StaffUser = {
   id: string;
@@ -89,8 +90,9 @@ export function UserManager() {
       <div className="toolbox-card">
         <h3>Staff users</h3>
         <p className="form-hint">
-          Named accounts for adjusters and supervisors. Seeded defaults use env
-          passwords on first boot.
+          Named accounts for <strong>Reviewers</strong> (claim underwriting —
+          same as adjuster) and <strong>Supervisors</strong> (Admin Tools).
+          Seeded defaults use env passwords on first boot.
         </p>
         {loading && <p className="claim-panel-meta">Loading…</p>}
         {error && <p className="form-error">{error}</p>}
@@ -112,7 +114,7 @@ export function UserManager() {
                   <tr key={user.id}>
                     <td>{user.name}</td>
                     <td>{user.email}</td>
-                    <td>{user.role}</td>
+                    <td>{formatRoleLabel(user.role)}</td>
                     <td>{user.active ? 'Active' : 'Disabled'}</td>
                     <td>
                       <button
@@ -162,7 +164,7 @@ export function UserManager() {
                 setRole(e.target.value as 'adjuster' | 'supervisor')
               }
             >
-              <option value="adjuster">Adjuster</option>
+              <option value="adjuster">Reviewer</option>
               <option value="supervisor">Supervisor</option>
             </select>
           </div>
