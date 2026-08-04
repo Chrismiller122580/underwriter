@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { flattenAttachedDocuments } from '@/lib/claim-documents';
 import { parsePolicyNumber } from '@/lib/contracts/policy-patterns';
 import { CONTRACT_TYPES } from '@/lib/contracts/types';
 import { isAllowedClaimDocumentUrl } from '@/lib/document-urls';
@@ -44,18 +45,26 @@ export const FILE_FIELDS = [
   'serviceHistory',
 ] as const;
 
+const documentUrlOrList = z.union([
+  z.string().url(),
+  z.array(z.string().url()).min(1),
+]);
+
 export const claimJsonSchema = claimFormSchema.extend({
   documents: z
-    .record(z.string().url())
+    .record(documentUrlOrList)
     .default({})
     .superRefine((documents, ctx) => {
-      for (const [field, url] of Object.entries(documents)) {
-        if (!isAllowedClaimDocumentUrl(url)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: `Document URL for "${field}" is not from an allowed upload source.`,
-            path: [field],
-          });
+      for (const [field, value] of Object.entries(documents)) {
+        const urls = Array.isArray(value) ? value : [value];
+        for (const [i, url] of urls.entries()) {
+          if (!isAllowedClaimDocumentUrl(url)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Document URL for "${field}" is not from an allowed upload source.`,
+              path: Array.isArray(value) ? [field, i] : [field],
+            });
+          }
         }
       }
     }),
@@ -73,23 +82,41 @@ export const FILE_FIELD_LABELS: Record<(typeof FILE_FIELDS)[number], string> = {
 
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
+/** Collect one or more files per document slot (supports multi-select inputs). */
 export function extractFilesFromFormData(
   formData: FormData
-): Record<string, File> {
-  const files: Record<string, File> = {};
+): Record<string, File[]> {
+  const files: Record<string, File[]> = {};
 
   for (const field of FILE_FIELDS) {
-    const value = formData.get(field);
-    if (value instanceof File && value.size > 0) {
-      files[field] = value;
+    const values = formData
+      .getAll(field)
+      .filter((value): value is File => value instanceof File && value.size > 0);
+    if (values.length > 0) {
+      files[field] = values;
     }
   }
 
   return files;
 }
 
-export function validateUploadedFileSizes(files: Record<string, File>): void {
-  for (const [field, file] of Object.entries(files)) {
+export function flattenUploadedFiles(
+  files: Record<string, File | File[]>
+): Array<{ field: string; file: File }> {
+  const out: Array<{ field: string; file: File }> = [];
+  for (const [field, value] of Object.entries(files)) {
+    const list = Array.isArray(value) ? value : value ? [value] : [];
+    for (const file of list) {
+      if (file && file.size > 0) out.push({ field, file });
+    }
+  }
+  return out;
+}
+
+export function validateUploadedFileSizes(
+  files: Record<string, File | File[]>
+): void {
+  for (const { field, file } of flattenUploadedFiles(files)) {
     if (file.size > MAX_FILE_SIZE_BYTES) {
       throw new Error(
         `${FILE_FIELD_LABELS[field as (typeof FILE_FIELDS)[number]] ?? field} exceeds the 10 MB limit.`
@@ -133,7 +160,7 @@ export function parseClaimJson(body: unknown): ParsedClaimJson {
 
 export function buildClaimDocument(
   parsed: ParsedClaimForm,
-  documentPaths: Record<string, string>
+  documentPaths: Record<string, string | string[]>
 ) {
   const policyParsed = parsePolicyNumber(parsed.policyNumber);
   const contractType = policyParsed.valid
@@ -200,7 +227,7 @@ export function buildClaimDocument(
         ? { fwisContractNumber: parsed.fwisContractNumber }
         : {}),
       amount: parsed.repairEstimate,
-      documents: Object.values(documentPaths),
+      documents: flattenAttachedDocuments(documentPaths),
       attachedDocuments: documentPaths,
     },
     status: 'pending' as const,

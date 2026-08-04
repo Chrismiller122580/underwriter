@@ -1,6 +1,7 @@
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { generateText } from 'ai';
+import { documentUrls } from '@/lib/claim-documents';
 import type { ClaimRecord } from '@/lib/claims-store';
 import { getVisionModelId, getXaiProvider } from '@/lib/ai-client';
 import { isAllowedClaimDocumentUrl } from '@/lib/document-urls';
@@ -209,53 +210,62 @@ export async function extractClaimDocumentTexts(
   let totalChars = 0;
 
   for (const field of FILE_FIELDS) {
-    const source = attached[field];
-    if (!source) continue;
+    const sources = documentUrls(attached[field]);
+    if (sources.length === 0) continue;
 
-    if (totalChars >= DOC_TEXT_MAX_TOTAL) {
-      results.push({
-        field,
-        label: FILE_FIELD_LABELS[field],
-        source,
-        text: '',
-        truncated: true,
-        error: 'Skipped — total document context budget reached',
-      });
-      continue;
-    }
+    for (const [fileIndex, source] of sources.entries()) {
+      const label =
+        sources.length > 1
+          ? `${FILE_FIELD_LABELS[field]} (${fileIndex + 1})`
+          : FILE_FIELD_LABELS[field];
 
-    const remaining = Math.min(
-      DOC_TEXT_MAX_PER_FILE,
-      DOC_TEXT_MAX_TOTAL - totalChars
-    );
+      if (totalChars >= DOC_TEXT_MAX_TOTAL) {
+        results.push({
+          field,
+          label,
+          source,
+          text: '',
+          truncated: true,
+          error: 'Skipped — total document context budget reached',
+        });
+        continue;
+      }
 
-    try {
-      const { buffer, contentType, filename } = await loadDocumentBuffer(source);
-      const raw = await bufferToText(buffer, contentType, filename);
-      const { text, truncated } = truncate(raw, remaining);
-      totalChars += text.length;
-      results.push({
-        field,
-        label: FILE_FIELD_LABELS[field],
-        source,
-        text,
-        truncated,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'extract failed';
-      logger.warn('Claim document extract failed', {
-        claimId: claim._id,
-        field,
-        error: message,
-      });
-      results.push({
-        field,
-        label: FILE_FIELD_LABELS[field],
-        source,
-        text: '',
-        truncated: false,
-        error: message,
-      });
+      const remaining = Math.min(
+        DOC_TEXT_MAX_PER_FILE,
+        DOC_TEXT_MAX_TOTAL - totalChars
+      );
+
+      try {
+        const { buffer, contentType, filename } =
+          await loadDocumentBuffer(source);
+        const raw = await bufferToText(buffer, contentType, filename);
+        const { text, truncated } = truncate(raw, remaining);
+        totalChars += text.length;
+        results.push({
+          field,
+          label,
+          source,
+          text,
+          truncated,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'extract failed';
+        logger.warn('Claim document extract failed', {
+          claimId: claim._id,
+          field,
+          fileIndex,
+          error: message,
+        });
+        results.push({
+          field,
+          label,
+          source,
+          text: '',
+          truncated: false,
+          error: message,
+        });
+      }
     }
   }
 

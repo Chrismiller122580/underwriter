@@ -1,6 +1,10 @@
 import { generateObject } from 'ai';
 import { getTextModelId, getXaiProvider } from '@/lib/ai-client';
 import { buildContractContext } from '@/lib/contracts/registry';
+import {
+  documentUrls,
+  hasAttachedDocument,
+} from '@/lib/claim-documents';
 import type { ClaimRecord } from '@/lib/claims-store';
 import {
   extractClaimDocumentTexts,
@@ -30,21 +34,26 @@ export type AnalyzeClaimOptions = {
 
 function buildDocumentStatus(claim: ClaimRecord) {
   const attached = claim.claimDetails.attachedDocuments ?? {};
-  const provided = FILE_FIELDS.filter((field) => attached[field]).map(
-    (field) => ({
-      field,
-      label: FILE_FIELD_LABELS[field],
-      url: attached[field],
-    })
-  );
-  const missing = FILE_FIELDS.filter((field) => !attached[field]).map(
-    (field) => ({
-      field,
-      label: FILE_FIELD_LABELS[field],
-    })
-  );
+  const provided = FILE_FIELDS.filter((field) =>
+    hasAttachedDocument(attached[field])
+  ).map((field) => ({
+    field,
+    label: FILE_FIELD_LABELS[field],
+    urls: documentUrls(attached[field]),
+    fileCount: documentUrls(attached[field]).length,
+  }));
+  const missing = FILE_FIELDS.filter(
+    (field) => !hasAttachedDocument(attached[field])
+  ).map((field) => ({
+    field,
+    label: FILE_FIELD_LABELS[field],
+  }));
 
-  return { provided, missing, documentCount: provided.length };
+  return {
+    provided,
+    missing,
+    documentCount: provided.reduce((sum, item) => sum + item.fileCount, 0),
+  };
 }
 
 function buildClaimContext(

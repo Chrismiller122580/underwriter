@@ -22,7 +22,9 @@ import { ScreenshotAutofill } from './ScreenshotAutofill';
 const USE_BLOB_UPLOAD = isBlobUploadEnabled();
 
 type FormValues = Record<ExtractableField, string>;
-type FieldErrors = Partial<Record<ExtractableField | (typeof FILE_FIELDS)[number], string>>;
+type FieldErrors = Partial<
+  Record<ExtractableField | (typeof FILE_FIELDS)[number], string>
+>;
 
 const EMPTY_VALUES = Object.fromEntries(
   EXTRACTABLE_FIELDS.map((f) => [f, ''])
@@ -43,7 +45,7 @@ const REQUIRED_FIELDS = EXTRACTABLE_FIELDS.filter(
 
 function validateForm(
   values: FormValues,
-  files: Record<string, File | null>,
+  files: Record<string, File[]>,
   contractType: ContractType | 'unknown'
 ): FieldErrors {
   const errors: FieldErrors = {};
@@ -77,9 +79,9 @@ function validateForm(
   }
 
   for (const field of FILE_FIELDS) {
-    const file = files[field];
-    if (file && file.size > MAX_FILE_SIZE_BYTES) {
-      errors[field] = 'File must be 10 MB or smaller.';
+    const list = files[field] ?? [];
+    if (list.some((file) => file.size > MAX_FILE_SIZE_BYTES)) {
+      errors[field] = 'Each file must be 10 MB or smaller.';
     }
   }
 
@@ -95,7 +97,7 @@ type FwisMeta = {
 
 function buildFormData(
   values: FormValues,
-  files: Record<string, File | null>,
+  files: Record<string, File[]>,
   contractType: ContractType | 'unknown',
   contractVariant: 'standard' | 'manufacturer_extension',
   fwisMeta: FwisMeta | null
@@ -115,29 +117,31 @@ function buildFormData(
   }
   if (fwisMeta?.dataSource) formData.append('dataSource', fwisMeta.dataSource);
   for (const field of FILE_FIELDS) {
-    const file = files[field];
-    if (file) formData.append(field, file);
+    for (const file of files[field] ?? []) {
+      formData.append(field, file);
+    }
   }
   return formData;
 }
 
 async function submitWithBlobUpload(
   values: FormValues,
-  files: Record<string, File | null>,
+  files: Record<string, File[]>,
   contractType: ContractType | 'unknown',
   contractVariant: 'standard' | 'manufacturer_extension',
   fwisMeta: FwisMeta | null,
   onProgress: (percent: number) => void
 ): Promise<{ ok: boolean; status: number; body: unknown }> {
-  const fieldsWithFiles = FILE_FIELDS.filter((field) => files[field]);
+  const flatFiles = FILE_FIELDS.flatMap((field) =>
+    (files[field] ?? []).map((file) => ({ field, file }))
+  );
   let completedUploads = 0;
 
   const uploadResults = await Promise.all(
-    fieldsWithFiles.map(async (field) => {
-      const file = files[field]!;
+    flatFiles.map(async ({ field, file }, index) => {
       // Path must include /claims/ so POST /api/claims document URL validation accepts it.
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const pathname = `claims/intake/${crypto.randomUUID()}/${field}-${safeName}`;
+      const pathname = `claims/intake/${crypto.randomUUID()}/${field}-${index}-${safeName}`;
       const blob = await upload(pathname, file, {
         access: 'public',
         handleUploadUrl: '/api/upload',
@@ -145,8 +149,8 @@ async function submitWithBlobUpload(
 
       completedUploads += 1;
       onProgress(
-        fieldsWithFiles.length > 0
-          ? Math.round((completedUploads / fieldsWithFiles.length) * 85)
+        flatFiles.length > 0
+          ? Math.round((completedUploads / flatFiles.length) * 85)
           : 85
       );
 
@@ -154,7 +158,18 @@ async function submitWithBlobUpload(
     })
   );
 
-  const documents = Object.fromEntries(uploadResults);
+  // Group multi-file uploads per slot
+  const documents: Record<string, string | string[]> = {};
+  for (const [field, url] of uploadResults) {
+    const existing = documents[field];
+    if (!existing) {
+      documents[field] = url;
+    } else if (Array.isArray(existing)) {
+      existing.push(url);
+    } else {
+      documents[field] = [existing, url];
+    }
+  }
 
   const response = await fetch('/api/claims', {
     method: 'POST',
@@ -219,8 +234,8 @@ export function ClaimForm() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(
     null
   );
-  const [files, setFiles] = useState<Record<string, File | null>>(
-    Object.fromEntries(FILE_FIELDS.map((f) => [f, null]))
+  const [files, setFiles] = useState<Record<string, File[]>>(
+    Object.fromEntries(FILE_FIELDS.map((f) => [f, []])) as Record<string, File[]>
   );
   const [fwisMeta, setFwisMeta] = useState<FwisMeta | null>(null);
   const [showScreenshotFallback, setShowScreenshotFallback] = useState(false);
@@ -503,17 +518,29 @@ export function ClaimForm() {
           Prefer FWIS import above. Attach extra files only if needed — none are
           required at submission. Each file must be 10 MB or smaller.
         </p>
-        <div className="form-grid">
-          {FILE_FIELDS.map((field) => (
-            <FileInput
-              key={field}
-              id={field}
-              name={field}
-              label={FILE_FIELD_LABELS[field]}
-              error={errors[field]}
-              onChange={(file) => setFiles((prev) => ({ ...prev, [field]: file }))}
-            />
-          ))}
+        <div className="form-grid attach-docs-grid">
+          {FILE_FIELDS.map((field) => {
+            const selected = files[field] ?? [];
+            return (
+              <FileInput
+                key={field}
+                id={field}
+                name={field}
+                label={FILE_FIELD_LABELS[field]}
+                multiple
+                hint="Multiple files allowed"
+                error={errors[field]}
+                selectedSummary={
+                  selected.length > 0
+                    ? `${selected.length} selected: ${selected.map((f) => f.name).join(', ')}`
+                    : undefined
+                }
+                onChange={(list) =>
+                  setFiles((prev) => ({ ...prev, [field]: list }))
+                }
+              />
+            );
+          })}
         </div>
       </section>
 

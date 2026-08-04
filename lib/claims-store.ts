@@ -17,6 +17,12 @@ import {
   toRelatedClaimSummary,
   type PolicyHistoryContext,
 } from '@/lib/policy-history';
+import {
+  countAttachedDocuments,
+  documentUrls,
+  flattenAttachedDocuments,
+  mergeDocumentValues,
+} from '@/lib/claim-documents';
 import { safeAppendClaimEvent } from '@/lib/claim-events';
 import {
   buildInfoRequest,
@@ -63,7 +69,8 @@ export type ClaimRecord = {
     description: string;
     amount: number;
     documents: string[];
-    attachedDocuments?: Record<string, string>;
+    /** Per-slot URLs: one string or multiple when several files were attached. */
+    attachedDocuments?: Record<string, string | string[]>;
     /** How intake data was obtained — fwis is preferred over screenshot. */
     dataSource?: 'fwis' | 'manual' | 'screenshot';
     fwisClaimId?: string;
@@ -311,7 +318,7 @@ export async function listClaimsForScope(
 
 export async function createClaim(
   parsed: ParsedClaimForm,
-  documentPaths: Record<string, string>
+  documentPaths: Record<string, string | string[]>
 ): Promise<ClaimRecord> {
   await ensureSchema();
   const sql = getSql();
@@ -371,11 +378,11 @@ export async function findClaimByPublicToken(
 
 export async function updateClaimDocuments(
   id: string,
-  documentPaths: Record<string, string>
+  documentPaths: Record<string, string | string[]>
 ): Promise<ClaimRecord> {
   await ensureSchema();
   const sql = getSql();
-  const documents = JSON.stringify(Object.values(documentPaths));
+  const documents = JSON.stringify(flattenAttachedDocuments(documentPaths));
   const attachedDocuments = JSON.stringify(documentPaths);
 
   const rows = (await sql`
@@ -395,44 +402,56 @@ export async function updateClaimDocuments(
 
 /**
  * Merge new document paths into an existing claim (post-submit attach).
- * New fields overwrite the same key; other attached docs are preserved.
+ * Same-slot uploads append (multi-file); other slots are preserved.
  */
 export async function attachClaimDocuments(
   id: string,
-  documentPaths: Record<string, string>,
+  documentPaths: Record<string, string | string[]>,
   actor?: { email?: string; role?: string }
 ): Promise<ClaimRecord | null> {
   const claim = await getClaimById(id);
   if (!claim) return null;
 
   const entries = Object.entries(documentPaths).filter(
-    ([, url]) => typeof url === 'string' && url.length > 0
+    ([, value]) => documentUrls(value).length > 0
   );
   if (entries.length === 0) {
     throw new Error('At least one document is required');
   }
 
-  const merged = {
-    ...(claim.claimDetails.attachedDocuments ?? {}),
-    ...Object.fromEntries(entries),
-  };
+  const existing = claim.claimDetails.attachedDocuments ?? {};
+  const merged: Record<string, string | string[]> = { ...existing };
+  for (const [field, value] of entries) {
+    merged[field] = mergeDocumentValues(existing[field], value);
+  }
+
+  // Drop empty keys if any
+  for (const key of Object.keys(merged)) {
+    if (documentUrls(merged[key]).length === 0) {
+      delete merged[key];
+    }
+  }
 
   const updated = await updateClaimDocuments(id, merged);
 
+  const fileCount = entries.reduce(
+    (sum, [, value]) => sum + documentUrls(value).length,
+    0
+  );
   const labels = entries.map(([field]) => field);
   await safeAppendClaimEvent({
     claimId: id,
     eventType: 'documents_attached',
-    summary: `Supporting document${entries.length === 1 ? '' : 's'} attached (${labels.join(', ')})`,
+    summary: `Supporting document${fileCount === 1 ? '' : 's'} attached (${labels.join(', ')})`,
     actorEmail: actor?.email,
     actorRole: actor?.role,
     fromStatus: claim.status,
     toStatus: updated.status,
     detail: {
       fields: labels,
-      previousCount: Object.keys(claim.claimDetails.attachedDocuments ?? {})
-        .length,
-      newCount: Object.keys(merged).length,
+      fileCount,
+      previousCount: countAttachedDocuments(existing),
+      newCount: countAttachedDocuments(merged),
     },
   });
 

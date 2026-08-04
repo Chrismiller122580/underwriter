@@ -2,6 +2,7 @@ import { readFile } from 'fs/promises';
 import path from 'path';
 import { NextResponse } from 'next/server';
 import { getSessionFromCookies } from '@/lib/auth';
+import { documentUrls } from '@/lib/claim-documents';
 import { getClaimById, isValidClaimId } from '@/lib/claims-store';
 import { isAllowedClaimDocumentUrl } from '@/lib/document-urls';
 import { logger } from '@/lib/logger';
@@ -21,7 +22,7 @@ function contentTypeForField(field: string, fallback?: string | null) {
   return 'application/octet-stream';
 }
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   const { id, field } = await context.params;
 
   const session = await getSessionFromCookies();
@@ -37,13 +38,20 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Invalid document field' }, { status: 400 });
   }
 
+  const indexParam = new URL(request.url).searchParams.get('index');
+  const index = indexParam != null ? Number(indexParam) : 0;
+  if (!Number.isInteger(index) || index < 0) {
+    return NextResponse.json({ error: 'Invalid document index' }, { status: 400 });
+  }
+
   try {
     const claim = await getClaimById(id);
     if (!claim) {
       return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
     }
 
-    const rawUrl = claim.claimDetails.attachedDocuments?.[field];
+    const urls = documentUrls(claim.claimDetails.attachedDocuments?.[field]);
+    const rawUrl = urls[index];
     if (!rawUrl) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
@@ -52,6 +60,11 @@ export async function GET(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Document access denied' }, { status: 403 });
     }
 
+    const labelBase =
+      FILE_FIELD_LABELS[field as (typeof FILE_FIELDS)[number]] ?? field;
+    const label =
+      urls.length > 1 ? `${labelBase}-${index + 1}` : labelBase;
+
     if (rawUrl.startsWith('uploads/')) {
       const diskPath = path.join(/* turbopackIgnore: true */ process.cwd(), rawUrl);
       const buffer = await readFile(diskPath);
@@ -59,7 +72,7 @@ export async function GET(_request: Request, context: RouteContext) {
       return new NextResponse(buffer, {
         headers: {
           'Content-Type': contentTypeForField(field),
-          'Content-Disposition': `inline; filename="${field}"`,
+          'Content-Disposition': `inline; filename="${label}"`,
         },
       });
     }
@@ -69,6 +82,7 @@ export async function GET(_request: Request, context: RouteContext) {
       logger.error('Failed to fetch claim document blob', {
         claimId: id,
         field,
+        index,
         status: upstream.status,
       });
       return NextResponse.json(
@@ -76,8 +90,6 @@ export async function GET(_request: Request, context: RouteContext) {
         { status: 502 }
       );
     }
-
-    const label = FILE_FIELD_LABELS[field as (typeof FILE_FIELDS)[number]] ?? field;
 
     return new NextResponse(upstream.body, {
       headers: {

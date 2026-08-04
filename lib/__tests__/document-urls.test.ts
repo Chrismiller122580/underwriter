@@ -64,4 +64,25 @@ describe('sanitizeClaimForPortal', () => {
       buildDocumentProxyUrl(claim._id, 'proofOfOwnership')
     );
   });
+
+  it('proxies multi-file slots with index query params', () => {
+    const claim = {
+      _id: '550e8400-e29b-41d4-a716-446655440000',
+      claimDetails: {
+        documents: [],
+        attachedDocuments: {
+          maintenanceRecords: [
+            'https://example.public.blob.vercel-storage.com/claims/a.pdf',
+            'https://example.public.blob.vercel-storage.com/claims/b.pdf',
+          ],
+        },
+      },
+    } as unknown as ClaimRecord;
+
+    const sanitized = sanitizeClaimForPortal(claim);
+    expect(sanitized.claimDetails.attachedDocuments?.maintenanceRecords).toEqual([
+      buildDocumentProxyUrl(claim._id, 'maintenanceRecords', 0),
+      buildDocumentProxyUrl(claim._id, 'maintenanceRecords', 1),
+    ]);
+  });
 });

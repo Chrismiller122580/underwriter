@@ -5,8 +5,12 @@ type FileInputProps = {
   name: string;
   label: string;
   required?: boolean;
+  multiple?: boolean;
   error?: string;
-  onChange: (file: File | null) => void;
+  hint?: string;
+  /** Shown under the control when files are already selected / attached. */
+  selectedSummary?: string;
+  onChange: (files: File[]) => void;
 };
 
 export function FileInput({
@@ -14,20 +18,31 @@ export function FileInput({
   name,
   label,
   required,
+  multiple = false,
   error,
+  hint,
+  selectedSummary,
   onChange,
 }: FileInputProps) {
   return (
-    <div className="form-field">
+    <div className={`form-field file-input-field${error ? ' has-error' : ''}`}>
       <label htmlFor={id}>{label}</label>
+      {hint && <p className="file-input-hint">{hint}</p>}
       <input
         type="file"
         id={id}
         name={name}
         required={required}
+        multiple={multiple}
         className={error ? 'input-error' : undefined}
-        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+        onChange={(e) => {
+          const list = e.target.files ? Array.from(e.target.files) : [];
+          onChange(list);
+        }}
       />
+      {selectedSummary && (
+        <span className="file-input-selected">{selectedSummary}</span>
+      )}
       {error && <span className="field-error">{error}</span>}
     </div>
   );

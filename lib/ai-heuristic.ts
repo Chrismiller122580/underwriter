@@ -1,3 +1,4 @@
+import { countAttachedDocuments, hasAttachedDocument } from '@/lib/claim-documents';
 import type { ClaimRecord } from '@/lib/claims-store';
 import type { AiAnalysis } from '@/lib/ai-types';
 import { FILE_FIELD_LABELS, FILE_FIELDS } from '@/lib/parse-claim-form';
@@ -7,7 +8,7 @@ function missingDocumentRequests(claim: ClaimRecord): string[] {
   const requests: string[] = [];
 
   for (const field of FILE_FIELDS) {
-    if (attached[field]) continue;
+    if (hasAttachedDocument(attached[field])) continue;
 
     switch (field) {
       case 'maintenanceRecords':
@@ -52,7 +53,9 @@ export function heuristicAnalysis(claim: ClaimRecord): AiAnalysis {
   const estimate = claim.repairInformation.repairEstimate;
   const desc = claim.incidentDetails.descriptionOfIncident.toLowerCase();
   const repairDesc = claim.repairInformation.detailedRepairDescription.toLowerCase();
-  const attachedCount = Object.keys(claim.claimDetails.attachedDocuments ?? {}).length;
+  const attachedCount = countAttachedDocuments(
+    claim.claimDetails.attachedDocuments
+  );
 
   if (now < effective || now > expiration) {
     flags.push('Policy is not currently active');
@@ -98,8 +101,8 @@ export function heuristicAnalysis(claim: ClaimRecord): AiAnalysis {
     repairDesc.includes('turbo');
   if (
     needsMaintenanceProof &&
-    !claim.claimDetails.attachedDocuments?.maintenanceRecords &&
-    !claim.claimDetails.attachedDocuments?.serviceHistory
+    !hasAttachedDocument(claim.claimDetails.attachedDocuments?.maintenanceRecords) &&
+    !hasAttachedDocument(claim.claimDetails.attachedDocuments?.serviceHistory)
   ) {
     flags.push('Major component repair without maintenance or service records');
     guidelineConflicts.push(
@@ -155,7 +158,7 @@ export function heuristicAnalysis(claim: ClaimRecord): AiAnalysis {
     componentCovered: null,
     maintenanceConcern:
       needsMaintenanceProof &&
-      !claim.claimDetails.attachedDocuments?.maintenanceRecords
+      !hasAttachedDocument(claim.claimDetails.attachedDocuments?.maintenanceRecords)
         ? true
         : null,
     inspectionRecommended: estimate > 5000 ? true : null,

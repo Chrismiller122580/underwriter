@@ -3,16 +3,22 @@
 import { useState } from 'react';
 import { UnderwriteButton } from '@/app/claims/UnderwriteButton';
 import { getContractDisplayName } from '@/lib/contracts/registry';
+import { documentUrls } from '@/lib/claim-documents';
 import {
   claimNeedsAction,
   claimPriorityScore,
   getAttachedDocuments,
   getContractBrief,
   getContractRulePreview,
+  getDocumentSlotStats,
   getMissingDocuments,
   getUnderwritingReadiness,
   type PortalClaim,
 } from '@/lib/claim-portal';
+import {
+  FILE_FIELD_LABELS,
+  FILE_FIELDS,
+} from '@/lib/parse-claim-form';
 import type { ClaimRecord } from '@/lib/claims-store';
 import { AiInsights } from './AiInsights';
 import { AnalyzeButton } from './AnalyzeButton';
@@ -67,6 +73,13 @@ export function ClaimCard({
   const priority = claimPriorityScore(claim);
   const missingDocs = getMissingDocuments(claim);
   const attachedDocs = getAttachedDocuments(claim);
+  const docStats = getDocumentSlotStats(claim);
+  const uploadSlots = FILE_FIELDS.map((field) => ({
+    field,
+    label: FILE_FIELD_LABELS[field],
+    existingCount: documentUrls(claim.claimDetails.attachedDocuments?.[field])
+      .length,
+  }));
   const contractBrief = getContractBrief(claim.policyInformation.contractType);
   const rulePreview = getContractRulePreview(claim);
   const readiness = getUnderwritingReadiness(claim);
@@ -211,7 +224,9 @@ export function ClaimCard({
         <div className="claim-fact">
           <span className="claim-fact-label">Documents</span>
           <span className="claim-fact-value">
-            {attachedDocs.length} attached · {missingDocs.length} missing
+            {docStats.fileCount} file{docStats.fileCount === 1 ? '' : 's'} ·{' '}
+            {docStats.missingSlots} slot{docStats.missingSlots === 1 ? '' : 's'}{' '}
+            empty
           </span>
         </div>
         <div className="claim-fact">
@@ -307,7 +322,7 @@ export function ClaimCard({
               {attachedDocs.length > 0 ? (
                 <ul className="claim-doc-list">
                   {attachedDocs.map((doc) => (
-                    <li key={doc.field}>
+                    <li key={`${doc.field}-${doc.index}`}>
                       <a href={doc.url} target="_blank" rel="noreferrer">
                         {doc.label}
                       </a>
@@ -323,28 +338,27 @@ export function ClaimCard({
               {missingDocs.length > 0 && (
                 <>
                   <p className="claim-panel-subhead">
-                    Missing — upload here or request from claimant
+                    Missing slots — upload here or request from claimant
                   </p>
                   <ul className="claim-doc-missing">
                     {missingDocs.map((doc) => (
                       <li key={doc.field}>{doc.label}</li>
                     ))}
                   </ul>
-                  <AttachDocuments
-                    claimId={claim._id}
-                    missingDocs={missingDocs}
-                    onComplete={(result) => {
-                      onClaimUpdated({
-                        _id: claim._id,
-                        claimDetails: result.claimDetails,
-                        updatedAt:
-                          result.updatedAt ?? new Date().toISOString(),
-                      });
-                      setTimelineKey((k) => k + 1);
-                    }}
-                  />
                 </>
               )}
+              <AttachDocuments
+                claimId={claim._id}
+                slots={uploadSlots}
+                onComplete={(result) => {
+                  onClaimUpdated({
+                    _id: claim._id,
+                    claimDetails: result.claimDetails,
+                    updatedAt: result.updatedAt ?? new Date().toISOString(),
+                  });
+                  setTimelineKey((k) => k + 1);
+                }}
+              />
             </section>
           </div>
 

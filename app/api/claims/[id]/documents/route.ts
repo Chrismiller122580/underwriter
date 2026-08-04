@@ -6,6 +6,7 @@ import {
   getClaimById,
   isValidClaimId,
 } from '@/lib/claims-store';
+import { documentUrls } from '@/lib/claim-documents';
 import {
   isAllowedClaimDocumentUrl,
   sanitizeClaimForPortal,
@@ -16,6 +17,7 @@ import {
   extractFilesFromFormData,
   FILE_FIELD_LABELS,
   FILE_FIELDS,
+  flattenUploadedFiles,
   validateUploadedFileSizes,
 } from '@/lib/parse-claim-form';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
@@ -27,15 +29,20 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
+const documentUrlOrList = z.union([
+  z.string().url(),
+  z.array(z.string().url()).min(1),
+]);
+
 const jsonBodySchema = z.object({
   documents: z
-    .record(z.string().url())
+    .record(documentUrlOrList)
     .refine(
       (docs) => Object.keys(docs).length > 0,
       'At least one document URL is required'
     )
     .superRefine((documents, ctx) => {
-      for (const [field, url] of Object.entries(documents)) {
+      for (const [field, value] of Object.entries(documents)) {
         if (!FILE_FIELDS.includes(field as (typeof FILE_FIELDS)[number])) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -44,12 +51,15 @@ const jsonBodySchema = z.object({
           });
           continue;
         }
-        if (!isAllowedClaimDocumentUrl(url)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: `Document URL for "${field}" is not from an allowed upload source.`,
-            path: [field],
-          });
+        const urls = Array.isArray(value) ? value : [value];
+        for (const [i, url] of urls.entries()) {
+          if (!isAllowedClaimDocumentUrl(url)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Document URL for "${field}" is not from an allowed upload source.`,
+              path: Array.isArray(value) ? [field, i] : [field],
+            });
+          }
         }
       }
     }),
@@ -57,8 +67,8 @@ const jsonBodySchema = z.object({
 
 /**
  * POST /api/claims/[id]/documents
- * Attach or replace supporting documents after claim submission.
- * Accepts multipart form fields (proofOfOwnership, …) or JSON { documents: { field: url } }.
+ * Attach supporting documents after claim submission (append multi-file per slot).
+ * Accepts multipart form fields (proofOfOwnership, …) or JSON { documents: { field: url | url[] } }.
  */
 export async function POST(request: Request, context: RouteContext) {
   const { id } = await context.params;
@@ -99,16 +109,22 @@ export async function POST(request: Request, context: RouteContext) {
 
   try {
     const contentType = request.headers.get('content-type') ?? '';
-    let documentPaths: Record<string, string> = {};
+    let documentPaths: Record<string, string | string[]> = {};
+    let fileCount = 0;
 
     if (contentType.includes('application/json')) {
       const body = jsonBodySchema.parse(await request.json());
       documentPaths = body.documents;
       validateClaimDocumentUrls(documentPaths);
+      fileCount = Object.values(documentPaths).reduce(
+        (sum, value) => sum + documentUrls(value).length,
+        0
+      );
     } else {
       const formData = await request.formData();
       const files = extractFilesFromFormData(formData);
-      if (Object.keys(files).length === 0) {
+      const flat = flattenUploadedFiles(files);
+      if (flat.length === 0) {
         return NextResponse.json(
           {
             error:
@@ -119,6 +135,7 @@ export async function POST(request: Request, context: RouteContext) {
       }
       validateUploadedFileSizes(files);
       documentPaths = await saveUploadedFiles(files, id);
+      fileCount = flat.length;
     }
 
     const claim = await attachClaimDocuments(id, documentPaths, {
@@ -139,6 +156,7 @@ export async function POST(request: Request, context: RouteContext) {
     logger.info('Claim documents attached', {
       claimId: id,
       fields: attachedFields,
+      fileCount,
       role: session.role,
       ip,
     });
@@ -149,7 +167,8 @@ export async function POST(request: Request, context: RouteContext) {
       id: claim._id,
       claimDetails: sanitized.claimDetails,
       attachedFields,
-      message: `Attached: ${labels.join(', ')}`,
+      fileCount,
+      message: `Attached ${fileCount} file${fileCount === 1 ? '' : 's'}: ${labels.join(', ')}`,
       updatedAt: claim.updatedAt,
     });
   } catch (error) {

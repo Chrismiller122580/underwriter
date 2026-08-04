@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   apiFetch,
   isUnauthorized,
@@ -22,32 +22,44 @@ export type AttachDocumentsResult = {
   message?: string;
 };
 
-type MissingDoc = {
+type DocSlot = {
   field: (typeof FILE_FIELDS)[number];
   label: string;
+  /** How many files already stored for this slot (if any). */
+  existingCount?: number;
 };
 
 export function AttachDocuments({
   claimId,
+  slots,
+  /** @deprecated use slots — kept for callers that only pass missing fields */
   missingDocs,
   onComplete,
 }: {
   claimId: string;
-  missingDocs: MissingDoc[];
+  slots?: DocSlot[];
+  missingDocs?: DocSlot[];
   onComplete?: (result: AttachDocumentsResult) => void;
 }) {
   const router = useRouter();
+  const uploadSlots = useMemo(
+    () => slots ?? missingDocs ?? [],
+    [slots, missingDocs]
+  );
   const [open, setOpen] = useState(false);
-  const [files, setFiles] = useState<Record<string, File | null>>({});
+  const [files, setFiles] = useState<Record<string, File[]>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  if (missingDocs.length === 0) {
+  if (uploadSlots.length === 0) {
     return null;
   }
 
-  const selectedCount = missingDocs.filter((doc) => files[doc.field]).length;
+  const selectedCount = Object.values(files).reduce(
+    (sum, list) => sum + list.length,
+    0
+  );
 
   async function handleUpload() {
     setError(null);
@@ -56,15 +68,16 @@ export function AttachDocuments({
     const formData = new FormData();
     let anyFile = false;
 
-    for (const doc of missingDocs) {
-      const file = files[doc.field];
-      if (!file) continue;
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        setError(`${doc.label} must be 10 MB or smaller.`);
-        return;
+    for (const slot of uploadSlots) {
+      const list = files[slot.field] ?? [];
+      for (const file of list) {
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+          setError(`${slot.label}: each file must be 10 MB or smaller.`);
+          return;
+        }
+        formData.append(slot.field, file);
+        anyFile = true;
       }
-      formData.append(doc.field, file);
-      anyFile = true;
     }
 
     if (!anyFile) {
@@ -123,21 +136,41 @@ export function AttachDocuments({
       {open && (
         <div className="attach-docs-panel">
           <p className="form-hint">
-            Attach files the claimant or shop provided after submission. Each
-            file must be 10 MB or smaller.
+            Select one or more files per slot (Ctrl/Cmd+click or multi-select).
+            New files append to any already attached. Each file max 10 MB.
           </p>
-          <div className="form-grid attach-docs-grid">
-            {missingDocs.map((doc) => (
-              <FileInput
-                key={doc.field}
-                id={`${claimId}-${doc.field}`}
-                name={doc.field}
-                label={doc.label}
-                onChange={(file) =>
-                  setFiles((prev) => ({ ...prev, [doc.field]: file }))
-                }
-              />
-            ))}
+          <div className="attach-docs-grid">
+            {uploadSlots.map((slot) => {
+              const selected = files[slot.field] ?? [];
+              const summaryParts: string[] = [];
+              if (slot.existingCount && slot.existingCount > 0) {
+                summaryParts.push(
+                  `${slot.existingCount} already on claim`
+                );
+              }
+              if (selected.length > 0) {
+                summaryParts.push(
+                  `${selected.length} selected: ${selected.map((f) => f.name).join(', ')}`
+                );
+              }
+
+              return (
+                <FileInput
+                  key={slot.field}
+                  id={`${claimId}-${slot.field}`}
+                  name={slot.field}
+                  label={slot.label}
+                  multiple
+                  hint="Multiple files allowed"
+                  selectedSummary={
+                    summaryParts.length > 0 ? summaryParts.join(' · ') : undefined
+                  }
+                  onChange={(list) =>
+                    setFiles((prev) => ({ ...prev, [slot.field]: list }))
+                  }
+                />
+              );
+            })}
           </div>
           <button
             type="button"
@@ -160,7 +193,7 @@ export function AttachDocuments({
 }
 
 /** Full label list for tests / callers that need every FILE_FIELD. */
-export function allDocumentSlots(): MissingDoc[] {
+export function allDocumentSlots(): DocSlot[] {
   return FILE_FIELDS.map((field) => ({
     field,
     label: FILE_FIELD_LABELS[field],

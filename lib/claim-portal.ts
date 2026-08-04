@@ -1,3 +1,8 @@
+import {
+  countAttachedDocuments,
+  documentUrls,
+  hasAttachedDocument,
+} from '@/lib/claim-documents';
 import type { ClaimRecord } from '@/lib/claims-store';
 import { evaluateContractRules } from '@/lib/contract-rules';
 import { getContractDefinition } from '@/lib/contracts/registry';
@@ -22,19 +27,54 @@ export type ContractFilter = 'all' | ContractTypeOrUnknown;
 
 export function getMissingDocuments(claim: PortalClaim) {
   const attached = claim.claimDetails.attachedDocuments ?? {};
-  return FILE_FIELDS.filter((field) => !attached[field]).map((field) => ({
-    field,
-    label: FILE_FIELD_LABELS[field],
-  }));
+  return FILE_FIELDS.filter((field) => !hasAttachedDocument(attached[field])).map(
+    (field) => ({
+      field,
+      label: FILE_FIELD_LABELS[field],
+    })
+  );
 }
 
-export function getAttachedDocuments(claim: PortalClaim) {
+export type AttachedDocumentLink = {
+  field: (typeof FILE_FIELDS)[number];
+  label: string;
+  url: string;
+  index: number;
+};
+
+export function getAttachedDocuments(claim: PortalClaim): AttachedDocumentLink[] {
   const attached = claim.claimDetails.attachedDocuments ?? {};
-  return FILE_FIELDS.filter((field) => attached[field]).map((field) => ({
-    field,
-    label: FILE_FIELD_LABELS[field],
-    url: attached[field],
-  }));
+  const links: AttachedDocumentLink[] = [];
+
+  for (const field of FILE_FIELDS) {
+    const urls = documentUrls(attached[field]);
+    urls.forEach((url, index) => {
+      links.push({
+        field,
+        label:
+          urls.length > 1
+            ? `${FILE_FIELD_LABELS[field]} (${index + 1})`
+            : FILE_FIELD_LABELS[field],
+        url,
+        index,
+      });
+    });
+  }
+
+  return links;
+}
+
+export function getDocumentSlotStats(claim: PortalClaim) {
+  const attached = claim.claimDetails.attachedDocuments ?? {};
+  return {
+    fileCount: countAttachedDocuments(attached),
+    filledSlots: FILE_FIELDS.filter((field) =>
+      hasAttachedDocument(attached[field])
+    ).length,
+    missingSlots: FILE_FIELDS.filter(
+      (field) => !hasAttachedDocument(attached[field])
+    ).length,
+  };
 }
 
 export function claimNeedsAction(claim: PortalClaim): boolean {
@@ -61,7 +101,9 @@ export function claimPriorityScore(claim: PortalClaim): number {
   else if ((claim.aiAnalysis?.riskScore ?? 0) >= 5) score += 10;
   if (claim.aiAnalysis?.recommendation === 'deny') score += 15;
   if (claim.aiAnalysis?.recommendation === 'review') score += 8;
-  if (getMissingDocuments(claim).length === FILE_FIELDS.length) score += 5;
+  if (countAttachedDocuments(claim.claimDetails.attachedDocuments) === 0) {
+    score += 5;
+  }
   return score;
 }
 
@@ -211,7 +253,10 @@ export function getUnderwritingReadiness(claim: PortalClaim): UnderwritingReadin
   }
 
   const missingDocs = getMissingDocuments(claim);
-  if (missingDocs.length === FILE_FIELDS.length) {
+  const attachedFileCount = countAttachedDocuments(
+    claim.claimDetails.attachedDocuments
+  );
+  if (attachedFileCount === 0) {
     warnings.push(
       'No supporting documents attached — upload them on this claim (Documentation status)'
     );
@@ -231,7 +276,7 @@ export function getUnderwritingReadiness(claim: PortalClaim): UnderwritingReadin
     nextAction =
       'Info requested from claimant — upload received docs here, then clear the request and underwrite';
     tone = 'review';
-  } else if (missingDocs.length === FILE_FIELDS.length) {
+  } else if (attachedFileCount === 0) {
     nextAction =
       'Upload supporting documents (or Request Info from claimant) before final underwriting';
     tone = 'review';

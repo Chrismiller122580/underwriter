@@ -32,7 +32,9 @@ export const sandboxScenarioSchema = z.object({
     .string()
     .default('Cylinder head gasket failure, engine overheating diagnosis.'),
   repairShopInformation: z.string().default('Sandbox Repair Center'),
-  attachedDocuments: z.record(z.string()).default({}),
+  attachedDocuments: z
+    .record(z.union([z.string(), z.array(z.string())]))
+    .default({}),
 });
 
 export type SandboxScenario = z.infer<typeof sandboxScenarioSchema>;
@@ -80,7 +82,9 @@ export function buildSandboxClaim(
     claimDetails: {
       description: scenario.descriptionOfIncident,
       amount: scenario.repairEstimate,
-      documents: Object.values(scenario.attachedDocuments),
+      documents: Object.values(scenario.attachedDocuments).flatMap((value) =>
+        Array.isArray(value) ? value : [value]
+      ),
       attachedDocuments: scenario.attachedDocuments,
     },
     status: 'pending',
