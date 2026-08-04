@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
-import { formatRoleLabel } from '@/lib/auth';
+import { formatRoleLabel } from '@/lib/roles';
 
 type StaffUser = {
   id: string;

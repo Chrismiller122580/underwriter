@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { OnboardingTutorial } from '@/components/OnboardingTutorial';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { TutorialToggle } from '@/components/TutorialToggle';
-import { formatRoleLabel } from '@/lib/auth';
+import { formatRoleLabel } from '@/lib/roles';
 import {
   TUTORIAL_CHANGE_EVENT,
   defaultTutorialState,

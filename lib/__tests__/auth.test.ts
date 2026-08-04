@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { getConfiguredRoles } from '@/lib/auth';
 import {
   formatRoleLabel,
-  getConfiguredRoles,
   isReviewerRole,
   normalizeUserRole,
-} from '@/lib/auth';
+} from '@/lib/roles';
 
 afterEach(() => {
   vi.unstubAllEnvs();
