@@ -77,7 +77,7 @@ export function ClaimTimeline({
       {!loading && !error && events.length === 0 && (
         <p className="claim-panel-meta">
           No audit events yet. Actions (submit, AI scan, underwrite, info
-          request, manual decision) appear here.
+          request, document attach, manual decision) appear here.
         </p>
       )}
 

@@ -212,7 +212,13 @@ export function getUnderwritingReadiness(claim: PortalClaim): UnderwritingReadin
 
   const missingDocs = getMissingDocuments(claim);
   if (missingDocs.length === FILE_FIELDS.length) {
-    warnings.push('No supporting documents attached');
+    warnings.push(
+      'No supporting documents attached — upload them on this claim (Documentation status)'
+    );
+  } else if (missingDocs.length > 0) {
+    warnings.push(
+      `${missingDocs.length} supporting document slot(s) still empty — upload if the claimant provided files`
+    );
   }
 
   let nextAction = 'Run AI Underwrite for a final decision';
@@ -223,7 +229,11 @@ export function getUnderwritingReadiness(claim: PortalClaim): UnderwritingReadin
     tone = 'blocked';
   } else if (claim.infoRequest?.items?.length) {
     nextAction =
-      'Info requested from claimant — clear the request when received, then underwrite';
+      'Info requested from claimant — upload received docs here, then clear the request and underwrite';
+    tone = 'review';
+  } else if (missingDocs.length === FILE_FIELDS.length) {
+    nextAction =
+      'Upload supporting documents (or Request Info from claimant) before final underwriting';
     tone = 'review';
   } else if ((claim.aiAnalysis.guidelineConflicts?.length ?? 0) > 0) {
     nextAction = 'Review guideline conflicts, then underwrite or request more info';

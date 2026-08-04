@@ -1145,15 +1145,6 @@ a {
   font-size: 14px;
 }
 
-.login-shared-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  margin: 12px 0;
-  cursor: pointer;
-}
-
 .status-card {
   max-width: 560px;
   margin: 0 auto;
@@ -1951,6 +1942,32 @@ html.dark .fwis-import-section {
 
 .claim-doc-missing {
   color: #b45309;
+}
+
+.attach-docs-control {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.attach-docs-panel {
+  padding: 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 10px;
+  background: var(--surface-muted, #f8fafc);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.attach-docs-grid {
+  margin: 0;
+}
+
+.attach-docs-msg {
+  margin: 0;
+  font-size: 13px;
 }
 
 .ai-rec-pill {
@@ -2768,7 +2785,8 @@ html.dark .fwis-import-section {
 
 [data-theme='dark'] .claim-fact-strip,
 [data-theme='dark'] .claim-panel,
-[data-theme='dark'] .underwriting-decision-box {
+[data-theme='dark'] .underwriting-decision-box,
+[data-theme='dark'] .attach-docs-panel {
   background: var(--bg-surface-muted);
   border-color: var(--border-default);
 }

@@ -98,16 +98,37 @@ export function validateUploadedFileSizes(files: Record<string, File>): void {
   }
 }
 
+/** Drop empty strings so optional fields and coerce.number don't misfire. */
+function normalizeClaimInput(
+  raw: Record<string, unknown>
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (value === '' || value === null || value === undefined) {
+      continue;
+    }
+    out[key] = value;
+  }
+  return out;
+}
+
 export function parseClaimFormData(formData: FormData): ParsedClaimForm {
   const raw = Object.fromEntries(
     Array.from(formData.entries()).filter(([, value]) => typeof value === 'string')
   );
 
-  return claimFormSchema.parse(raw);
+  return claimFormSchema.parse(normalizeClaimInput(raw));
 }
 
 export function parseClaimJson(body: unknown): ParsedClaimJson {
-  return claimJsonSchema.parse(body);
+  if (!body || typeof body !== 'object') {
+    return claimJsonSchema.parse(body);
+  }
+  const { documents, ...rest } = body as Record<string, unknown>;
+  return claimJsonSchema.parse({
+    ...normalizeClaimInput(rest),
+    ...(documents !== undefined ? { documents } : {}),
+  });
 }
 
 export function buildClaimDocument(

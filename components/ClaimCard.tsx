@@ -16,6 +16,7 @@ import {
 import type { ClaimRecord } from '@/lib/claims-store';
 import { AiInsights } from './AiInsights';
 import { AnalyzeButton } from './AnalyzeButton';
+import { AttachDocuments } from './AttachDocuments';
 import { ClaimTimeline } from './ClaimTimeline';
 import { ManualDecisionButton } from './ManualDecisionButton';
 import { RequestInfoButton } from './RequestInfoButton';
@@ -26,6 +27,7 @@ export type ClaimPatch = {
   aiAnalysis?: ClaimRecord['aiAnalysis'];
   underwriting?: ClaimRecord['underwriting'];
   infoRequest?: ClaimRecord['infoRequest'] | null;
+  claimDetails?: ClaimRecord['claimDetails'];
   updatedAt?: string;
 };
 
@@ -313,16 +315,34 @@ export function ClaimCard({
                   ))}
                 </ul>
               ) : (
-                <p className="claim-panel-meta">No files attached at submission.</p>
+                <p className="claim-panel-meta">
+                  No supporting documents attached — upload them below when
+                  received from the claimant or shop.
+                </p>
               )}
               {missingDocs.length > 0 && (
                 <>
-                  <p className="claim-panel-subhead">Missing (AI may request)</p>
+                  <p className="claim-panel-subhead">
+                    Missing — upload here or request from claimant
+                  </p>
                   <ul className="claim-doc-missing">
                     {missingDocs.map((doc) => (
                       <li key={doc.field}>{doc.label}</li>
                     ))}
                   </ul>
+                  <AttachDocuments
+                    claimId={claim._id}
+                    missingDocs={missingDocs}
+                    onComplete={(result) => {
+                      onClaimUpdated({
+                        _id: claim._id,
+                        claimDetails: result.claimDetails,
+                        updatedAt:
+                          result.updatedAt ?? new Date().toISOString(),
+                      });
+                      setTimelineKey((k) => k + 1);
+                    }}
+                  />
                 </>
               )}
             </section>

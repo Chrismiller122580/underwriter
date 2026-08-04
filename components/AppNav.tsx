@@ -167,7 +167,7 @@ export function AppNav() {
   }
 
   const loginHref = pathname.startsWith('/admin')
-    ? '/login?next=/admin/toolbox&role=supervisor'
+    ? '/login?next=/admin/toolbox'
     : pathname.startsWith('/submit')
       ? '/login?next=/submit'
       : '/login';

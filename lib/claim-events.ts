@@ -6,7 +6,8 @@ export type ClaimEventType =
   | 'underwritten'
   | 'info_requested'
   | 'info_cleared'
-  | 'manual_decision';
+  | 'manual_decision'
+  | 'documents_attached';
 
 export type ClaimEventRecord = {
   id: string;

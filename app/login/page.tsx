@@ -4,11 +4,9 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; role?: string }>;
+  searchParams: Promise<{ next?: string }>;
 }) {
   const params = await searchParams;
-  const defaultRole =
-    params.role === 'supervisor' ? 'supervisor' : 'adjuster';
 
   return (
     <main className="container page-main">
@@ -22,10 +20,7 @@ export default async function LoginPage({
           Sign in with your staff email and password. Supervisors can manage
           users, AI knowledge, and the full toolbox.
         </p>
-        <LoginForm
-          redirectTo={params.next ?? '/claims'}
-          defaultRole={defaultRole}
-        />
+        <LoginForm redirectTo={params.next ?? '/claims'} />
       </div>
     </main>
   );

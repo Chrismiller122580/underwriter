@@ -140,9 +140,23 @@ export async function POST(request: Request) {
     }
 
     if (error instanceof ZodError) {
-      logger.warn('Claim validation failed', { ip });
+      const flat = error.flatten();
+      const fieldSummary = Object.entries(flat.fieldErrors)
+        .filter(([, msgs]) => msgs && msgs.length > 0)
+        .map(([field, msgs]) => `${field}: ${(msgs as string[]).join(', ')}`)
+        .slice(0, 6)
+        .join('; ');
+      logger.warn('Claim validation failed', {
+        ip,
+        fields: Object.keys(flat.fieldErrors),
+      });
       return NextResponse.json(
-        { error: 'Validation failed', details: error.flatten() },
+        {
+          error: fieldSummary
+            ? `Validation failed — ${fieldSummary}`
+            : 'Validation failed',
+          details: flat,
+        },
         { status: 400 }
       );
     }

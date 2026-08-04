@@ -135,7 +135,10 @@ async function submitWithBlobUpload(
   const uploadResults = await Promise.all(
     fieldsWithFiles.map(async (field) => {
       const file = files[field]!;
-      const blob = await upload(file.name, file, {
+      // Path must include /claims/ so POST /api/claims document URL validation accepts it.
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const pathname = `claims/intake/${crypto.randomUUID()}/${field}-${safeName}`;
+      const blob = await upload(pathname, file, {
         access: 'public',
         handleUploadUrl: '/api/upload',
       });
@@ -368,8 +371,25 @@ export function ClaimForm() {
           );
 
       if (!result.ok) {
-        const body = result.body as { error?: string };
-        throw new Error(body.error ?? 'Submission failed');
+        const body = result.body as {
+          error?: string;
+          details?: {
+            formErrors?: string[];
+            fieldErrors?: Record<string, string[] | undefined>;
+          };
+        };
+        const fieldBits = body.details?.fieldErrors
+          ? Object.entries(body.details.fieldErrors)
+              .filter(([, msgs]) => msgs && msgs.length > 0)
+              .map(([field, msgs]) => `${field}: ${msgs!.join(', ')}`)
+          : [];
+        const detailText =
+          fieldBits.length > 0
+            ? ` (${fieldBits.slice(0, 4).join('; ')}${fieldBits.length > 4 ? '…' : ''})`
+            : body.details?.formErrors?.length
+              ? ` (${body.details.formErrors.join('; ')})`
+              : '';
+        throw new Error((body.error ?? 'Submission failed') + detailText);
       }
 
       const body = result.body as {

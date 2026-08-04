@@ -393,6 +393,52 @@ export async function updateClaimDocuments(
   return mapRow(rows[0]);
 }
 
+/**
+ * Merge new document paths into an existing claim (post-submit attach).
+ * New fields overwrite the same key; other attached docs are preserved.
+ */
+export async function attachClaimDocuments(
+  id: string,
+  documentPaths: Record<string, string>,
+  actor?: { email?: string; role?: string }
+): Promise<ClaimRecord | null> {
+  const claim = await getClaimById(id);
+  if (!claim) return null;
+
+  const entries = Object.entries(documentPaths).filter(
+    ([, url]) => typeof url === 'string' && url.length > 0
+  );
+  if (entries.length === 0) {
+    throw new Error('At least one document is required');
+  }
+
+  const merged = {
+    ...(claim.claimDetails.attachedDocuments ?? {}),
+    ...Object.fromEntries(entries),
+  };
+
+  const updated = await updateClaimDocuments(id, merged);
+
+  const labels = entries.map(([field]) => field);
+  await safeAppendClaimEvent({
+    claimId: id,
+    eventType: 'documents_attached',
+    summary: `Supporting document${entries.length === 1 ? '' : 's'} attached (${labels.join(', ')})`,
+    actorEmail: actor?.email,
+    actorRole: actor?.role,
+    fromStatus: claim.status,
+    toStatus: updated.status,
+    detail: {
+      fields: labels,
+      previousCount: Object.keys(claim.claimDetails.attachedDocuments ?? {})
+        .length,
+      newCount: Object.keys(merged).length,
+    },
+  });
+
+  return updated;
+}
+
 export async function saveAiAnalysis(
   id: string,
   analysis: AiAnalysis

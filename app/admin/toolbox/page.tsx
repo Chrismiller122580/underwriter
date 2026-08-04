@@ -6,7 +6,7 @@ export default async function SupervisorToolboxPage() {
   const session = await getSessionFromCookies();
 
   if (!session) {
-    redirect('/login?next=/admin/toolbox&role=supervisor');
+    redirect('/login?next=/admin/toolbox');
   }
 
   if (!canManageKnowledge(session.role)) {

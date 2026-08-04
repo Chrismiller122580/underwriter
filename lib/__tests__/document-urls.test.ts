@@ -15,6 +15,22 @@ describe('isAllowedClaimDocumentUrl', () => {
     ).toBe(true);
   });
 
+  it('allows client intake blob paths under claims/', () => {
+    expect(
+      isAllowedClaimDocumentUrl(
+        'https://example.public.blob.vercel-storage.com/claims/intake/uuid/proofOfOwnership-scan.pdf'
+      )
+    ).toBe(true);
+  });
+
+  it('rejects blob URLs that are not under claims/', () => {
+    expect(
+      isAllowedClaimDocumentUrl(
+        'https://example.public.blob.vercel-storage.com/proof.pdf'
+      )
+    ).toBe(false);
+  });
+
   it('rejects arbitrary external URLs', () => {
     expect(isAllowedClaimDocumentUrl('https://evil.example.com/claims/file.pdf')).toBe(
       false
