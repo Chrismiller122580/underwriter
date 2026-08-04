@@ -31,6 +31,11 @@ import {
   type DocumentWaiverReason,
   type DocumentWaiversMap,
 } from '@/lib/document-waivers';
+import {
+  buildGuidelineSkip,
+  mergeGuidelineSkip,
+  type GuidelineSkip,
+} from '@/lib/guideline-skips';
 import { FILE_FIELD_LABELS, type FileField } from '@/lib/parse-claim-form';
 import {
   buildInfoRequest,
@@ -111,6 +116,8 @@ export type ClaimRecord = {
   };
   aiAnalysis?: AiAnalysis;
   infoRequest?: InfoRequestRecord;
+  /** Staff-dismissed AI guideline concerns (exact text match). */
+  guidelineSkips?: GuidelineSkip[];
   /** Public tracking code for claimant status portal (not the UUID). */
   publicToken?: string;
   createdAt: string;
@@ -129,6 +136,7 @@ type ClaimRow = {
   underwriting: ClaimRecord['underwriting'] | null;
   ai_analysis: AiAnalysis | null;
   info_request?: InfoRequestRecord | null;
+  guideline_skips?: GuidelineSkip[] | null;
   public_token?: string | null;
   created_at: string;
   updated_at: string;
@@ -147,6 +155,7 @@ function mapRow(row: ClaimRow): ClaimRecord {
     underwriting: row.underwriting ?? undefined,
     aiAnalysis: row.ai_analysis ?? undefined,
     infoRequest: row.info_request ?? undefined,
+    guidelineSkips: row.guideline_skips ?? undefined,
     publicToken: row.public_token ?? undefined,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
@@ -797,6 +806,71 @@ export async function clearInfoRequestOnClaim(
   return updated;
 }
 
+/**
+ * Dismiss an AI guideline concern so it no longer blocks readiness / underwrite.
+ * Conflict text must match an item currently on the claim's AI analysis.
+ */
+export async function skipGuidelineOnClaim(
+  id: string,
+  input: {
+    conflict: string;
+    note?: string;
+    skippedBy?: string;
+    skippedByRole?: string;
+  }
+): Promise<ClaimRecord | null> {
+  const claim = await getClaimById(id);
+  if (!claim) return null;
+
+  const conflict = input.conflict.trim();
+  if (!conflict) {
+    throw new Error('Guideline conflict text is required');
+  }
+
+  const active = claim.aiAnalysis?.guidelineConflicts ?? [];
+  const match = active.find(
+    (item) =>
+      item.trim().toLowerCase().replace(/\s+/g, ' ') ===
+      conflict.toLowerCase().replace(/\s+/g, ' ')
+  );
+  if (!match) {
+    throw new Error(
+      'That guideline concern is not on this claim’s current AI analysis. Refresh AI Scan and try again.'
+    );
+  }
+
+  const skip = buildGuidelineSkip(match, {
+    note: input.note,
+    skippedBy: input.skippedBy,
+  });
+  const guidelineSkips = mergeGuidelineSkip(claim.guidelineSkips, skip);
+
+  const sql = getSql();
+  const rows = (await sql`
+    UPDATE claims
+    SET guideline_skips = ${JSON.stringify(guidelineSkips)}::jsonb,
+        updated_at = NOW()
+    WHERE id = ${id}::uuid
+    RETURNING *
+  `) as ClaimRow[];
+
+  const updated = mapRow(rows[0]);
+  await safeAppendClaimEvent({
+    claimId: id,
+    eventType: 'guideline_skipped',
+    summary: `Guideline concern skipped: ${match.slice(0, 160)}`,
+    actorEmail: input.skippedBy,
+    actorRole: input.skippedByRole,
+    fromStatus: claim.status,
+    toStatus: updated.status,
+    detail: {
+      conflict: match,
+      note: input.note,
+    },
+  });
+  return updated;
+}
+
 export type ManualDecisionInput = {
   decision: 'approved' | 'denied' | 'under_review';
   reason: string;
@@ -922,7 +996,9 @@ export async function underwriteClaimById(
   const ruleResult = evaluateContractRules(claim, { policyHistory });
   const aiReused = shouldReuseAiAnalysis(claim.aiAnalysis, options.force);
   const aiAnalysis = await resolveAiAnalysis(claim, options, policyHistory);
-  const combined = combineDecisions(ruleResult.decision, aiAnalysis);
+  const combined = combineDecisions(ruleResult.decision, aiAnalysis, {
+    guidelineSkips: claim.guidelineSkips,
+  });
 
   const underwriting = {
     decision: combined.decision === 'under_review' ? 'pending' : combined.decision,

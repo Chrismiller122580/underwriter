@@ -13,10 +13,18 @@ import {
   isDocumentWaived,
   type DocumentWaiver,
 } from '@/lib/document-waivers';
+import { getActiveGuidelineConflicts } from '@/lib/guideline-skips';
 import {
   FILE_FIELD_LABELS,
   FILE_FIELDS,
 } from '@/lib/parse-claim-form';
+
+export function getOpenGuidelineConflicts(claim: PortalClaim): string[] {
+  return getActiveGuidelineConflicts(
+    claim.aiAnalysis?.guidelineConflicts,
+    claim.guidelineSkips
+  );
+}
 
 export type PortalClaim = ClaimRecord;
 
@@ -110,7 +118,7 @@ export function claimNeedsAction(claim: PortalClaim): boolean {
     Boolean(claim.infoRequest) ||
     !claim.aiAnalysis ||
     (claim.aiAnalysis.informationRequests?.length ?? 0) > 0 ||
-    (claim.aiAnalysis.guidelineConflicts?.length ?? 0) > 0
+    getOpenGuidelineConflicts(claim).length > 0
   );
 }
 
@@ -121,7 +129,7 @@ export function claimPriorityScore(claim: PortalClaim): number {
   if (claim.status === 'needs_info' || claim.infoRequest) score += 28;
   if (!claim.aiAnalysis) score += 15;
   if ((claim.aiAnalysis?.informationRequests?.length ?? 0) > 0) score += 25;
-  if ((claim.aiAnalysis?.guidelineConflicts?.length ?? 0) > 0) score += 20;
+  if (getOpenGuidelineConflicts(claim).length > 0) score += 20;
   if ((claim.aiAnalysis?.riskScore ?? 0) >= 8) score += 22;
   else if ((claim.aiAnalysis?.riskScore ?? 0) >= 5) score += 10;
   if (claim.aiAnalysis?.recommendation === 'deny') score += 15;
@@ -153,7 +161,7 @@ export function filterClaims(
           (claim.aiAnalysis?.informationRequests?.length ?? 0) > 0
         );
       case 'guideline_flags':
-        return (claim.aiAnalysis?.guidelineConflicts?.length ?? 0) > 0;
+        return getOpenGuidelineConflicts(claim).length > 0;
       case 'high_risk':
         return (claim.aiAnalysis?.riskScore ?? 0) >= 7;
       case 'under_review':
@@ -269,8 +277,13 @@ export function getUnderwritingReadiness(claim: PortalClaim): UnderwritingReadin
     );
   }
 
-  if ((claim.aiAnalysis?.guidelineConflicts?.length ?? 0) > 0) {
-    warnings.push('Guideline conflicts flagged by AI');
+  const openGuidelines = getOpenGuidelineConflicts(claim);
+  if (openGuidelines.length > 0) {
+    warnings.push(
+      `Guideline concerns open (${openGuidelines.length}) — review or skip if accepted`
+    );
+  } else if ((claim.aiAnalysis?.guidelineConflicts?.length ?? 0) > 0) {
+    warnings.push('Guideline concerns skipped by staff — documented on claim');
   }
 
   if ((claim.aiAnalysis?.riskScore ?? 0) >= 8) {
@@ -305,8 +318,9 @@ export function getUnderwritingReadiness(claim: PortalClaim): UnderwritingReadin
     nextAction =
       'Upload supporting documents (or Request Info from claimant) before final underwriting';
     tone = 'review';
-  } else if ((claim.aiAnalysis.guidelineConflicts?.length ?? 0) > 0) {
-    nextAction = 'Review guideline conflicts, then underwrite or request more info';
+  } else if (openGuidelines.length > 0) {
+    nextAction =
+      'Review guideline concerns (or Skip if accepted), then underwrite or request more info';
     tone = 'review';
   } else if ((claim.aiAnalysis.informationRequests?.length ?? 0) > 0) {
     nextAction =
@@ -343,7 +357,7 @@ export function portalStats(claims: PortalClaim[]) {
       (c) => (c.aiAnalysis?.informationRequests?.length ?? 0) > 0
     ).length,
     guidelineFlags: claims.filter(
-      (c) => (c.aiAnalysis?.guidelineConflicts?.length ?? 0) > 0
+      (c) => getOpenGuidelineConflicts(c).length > 0
     ).length,
     noAi: claims.filter((c) => !c.aiAnalysis).length,
     highRisk: claims.filter((c) => (c.aiAnalysis?.riskScore ?? 0) >= 7).length,

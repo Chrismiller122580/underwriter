@@ -27,6 +27,8 @@ import {
   formatPolicyHistoryForPrompt,
   type PolicyHistoryContext,
 } from '@/lib/policy-history';
+import { getActiveGuidelineConflicts } from '@/lib/guideline-skips';
+import type { GuidelineSkip } from '@/lib/guideline-skips';
 import { checkAutoApproveGuardrails } from '@/lib/underwriting-guardrails';
 import { evaluateComponentCoverage } from '@/lib/contracts/components';
 
@@ -179,8 +181,32 @@ Pay special attention to:
 
 export function combineDecisions(
   ruleDecision: 'approved' | 'denied' | 'pending',
-  ai: AiAnalysis
+  ai: AiAnalysis,
+  options?: { guidelineSkips?: GuidelineSkip[] | null }
 ): { decision: 'approved' | 'denied' | 'under_review'; reason: string } {
+  const activeGuidelineConflicts = getActiveGuidelineConflicts(
+    ai.guidelineConflicts,
+    options?.guidelineSkips
+  );
+
+  // Staff skipped every guideline concern that drove a "review" recommendation.
+  const reviewOnlyFromGuidelines =
+    ai.recommendation === 'review' &&
+    ai.informationRequests.length === 0 &&
+    (ai.guidelineConflicts?.length ?? 0) > 0 &&
+    activeGuidelineConflicts.length === 0 &&
+    (ai.fraudIndicators?.length ?? 0) === 0 &&
+    ai.riskScore < 7;
+
+  const aiForDecision: AiAnalysis = {
+    ...ai,
+    guidelineConflicts: activeGuidelineConflicts,
+    recommendation:
+      reviewOnlyFromGuidelines && ai.recommendation === 'review'
+        ? 'approve'
+        : ai.recommendation,
+  };
+
   if (ruleDecision === 'denied') {
     return {
       decision: 'denied',
@@ -204,8 +230,8 @@ export function combineDecisions(
 
   if (
     ai.informationRequests.length > 0 ||
-    ai.guidelineConflicts.length > 0 ||
-    ai.recommendation === 'review'
+    activeGuidelineConflicts.length > 0 ||
+    (ai.recommendation === 'review' && !reviewOnlyFromGuidelines)
   ) {
     const parts = [
       `AI flags for review (risk ${ai.riskScore}/10): ${ai.reasoning}`,
@@ -213,8 +239,10 @@ export function combineDecisions(
     if (ai.informationRequests.length > 0) {
       parts.push(`Information needed: ${ai.informationRequests.join('; ')}`);
     }
-    if (ai.guidelineConflicts.length > 0) {
-      parts.push(`Guideline concerns: ${ai.guidelineConflicts.join('; ')}`);
+    if (activeGuidelineConflicts.length > 0) {
+      parts.push(
+        `Guideline concerns: ${activeGuidelineConflicts.join('; ')}`
+      );
     }
     return {
       decision: 'under_review',
@@ -222,8 +250,8 @@ export function combineDecisions(
     };
   }
 
-  // Rules passed + AI approve — apply auto-approve safety guardrails
-  const guardrails = checkAutoApproveGuardrails(ai);
+  // Rules passed + AI approve (or review cleared after staff guideline skips)
+  const guardrails = checkAutoApproveGuardrails(aiForDecision);
   if (!guardrails.allowed) {
     return {
       decision: 'under_review',
@@ -231,8 +259,12 @@ export function combineDecisions(
     };
   }
 
+  const skipNote = reviewOnlyFromGuidelines
+    ? ' Staff skipped guideline concern(s); remaining gates clear.'
+    : '';
+
   return {
     decision: 'approved',
-    reason: `AI approved (risk ${ai.riskScore}/10, ${ai.confidence}% confidence): ${ai.reasoning}`,
+    reason: `AI approved (risk ${ai.riskScore}/10, ${ai.confidence}% confidence): ${ai.reasoning}${skipNote}`,
   };
 }

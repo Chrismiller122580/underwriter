@@ -2076,6 +2076,78 @@ html.dark .fwis-import-section {
   color: #0f766e;
 }
 
+.ai-guideline-hint {
+  margin: 6px 0 10px;
+}
+
+.ai-guideline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-guideline-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  background: var(--bg-surface, #fff);
+}
+
+.ai-guideline-text {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.ai-guideline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ai-guideline-note {
+  flex: 1 1 200px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border-input, #cbd5e1);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  background: var(--input-bg, #fff);
+  color: var(--input-text, inherit);
+}
+
+.ai-guideline-skipped {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+}
+
+.ai-guideline-skipped ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+[data-theme='dark'] .ai-guideline-item {
+  background: var(--bg-surface);
+  border-color: var(--border-default);
+}
+
+[data-theme='dark'] .ai-guideline-skipped {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(52, 211, 153, 0.35);
+  color: #6ee7b7;
+}
+
 .ai-rec-pill {
   font-size: 11px;
   font-weight: 700;

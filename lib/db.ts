@@ -72,6 +72,10 @@ export async function ensureSchema(): Promise<void> {
   `;
 
   await sql`
+    ALTER TABLE claims ADD COLUMN IF NOT EXISTS guideline_skips JSONB
+  `;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS claim_events (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       claim_id UUID NOT NULL REFERENCES claims(id) ON DELETE CASCADE,

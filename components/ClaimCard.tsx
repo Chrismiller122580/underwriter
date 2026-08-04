@@ -12,6 +12,7 @@ import {
   getContractRulePreview,
   getDocumentSlotStats,
   getMissingDocuments,
+  getOpenGuidelineConflicts,
   getUnderwritingReadiness,
   getWaivedDocuments,
   type PortalClaim,
@@ -36,6 +37,7 @@ export type ClaimPatch = {
   underwriting?: ClaimRecord['underwriting'];
   infoRequest?: ClaimRecord['infoRequest'] | null;
   claimDetails?: ClaimRecord['claimDetails'];
+  guidelineSkips?: ClaimRecord['guidelineSkips'];
   updatedAt?: string;
 };
 
@@ -157,7 +159,7 @@ export function ClaimCard({
             {claim.aiAnalysis!.informationRequests!.length === 1 ? '' : 's'}
           </span>
         )}
-        {(claim.aiAnalysis?.guidelineConflicts?.length ?? 0) > 0 && (
+        {getOpenGuidelineConflicts(claim).length > 0 && (
           <span className="claim-signal claim-signal-guideline">
             Guideline flag
           </span>
@@ -388,7 +390,21 @@ export function ClaimCard({
             </div>
           )}
 
-          {claim.aiAnalysis && <AiInsights analysis={claim.aiAnalysis} />}
+          {claim.aiAnalysis && (
+            <AiInsights
+              analysis={claim.aiAnalysis}
+              claimId={claim._id}
+              guidelineSkips={claim.guidelineSkips}
+              onGuidelineSkipped={(skips) => {
+                onClaimUpdated({
+                  _id: claim._id,
+                  guidelineSkips: skips,
+                  updatedAt: new Date().toISOString(),
+                });
+                setTimelineKey((k) => k + 1);
+              }}
+            />
+          )}
 
           {claim.infoRequest?.items?.length ? (
             <div className="info-request-box">

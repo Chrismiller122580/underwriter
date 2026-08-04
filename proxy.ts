@@ -23,7 +23,7 @@ export async function proxy(request: NextRequest) {
     (pathname.match(/^\/api\/claims\/[^/]+\/documents\/waive$/) &&
       request.method === 'POST') ||
     (pathname.match(
-      /^\/api\/claims\/[^/]+\/(underwrite|analyze|request-info|clear-info-request|decide)$/
+      /^\/api\/claims\/[^/]+\/(underwrite|analyze|request-info|clear-info-request|decide|skip-guideline)$/
     ) &&
       request.method === 'POST') ||
     (pathname.match(/^\/api\/claims\/[^/]+\/events$/) &&
