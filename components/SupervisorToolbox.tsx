@@ -149,7 +149,7 @@ export function SupervisorToolbox() {
     <div className="supervisor-toolbox">
       <aside className="toolbox-sidebar">
         <div className="toolbox-sidebar-header">
-          <p className="badge">Supervisor Toolbox</p>
+          <p className="badge">Admin Tools</p>
           <p className="toolbox-tagline">Freedom Warranty AI command center</p>
         </div>
         <nav className="toolbox-nav">
@@ -596,11 +596,21 @@ function ContractsPanel({ overview }: { overview: OverviewData | null }) {
         <div className="toolbox-card">
           <h3>Optional claimant documents</h3>
           <p className="form-hint">
-            Not required at intake. AI requests missing docs when guidelines need them.
+            Not required at intake. AI requests missing docs when guidelines need
+            them. Staff can attach files after submission. Prior Claims History
+            can be marked <strong>none on file</strong> when there is no history.
           </p>
           <ul>
             {overview.contracts.documentTypes.map((doc) => (
-              <li key={doc}>{doc}</li>
+              <li key={doc}>
+                {doc}
+                {doc === 'Prior Claims History' ? (
+                  <span className="form-hint">
+                    {' '}
+                    — opt-out allowed if none
+                  </span>
+                ) : null}
+              </li>
             ))}
           </ul>
         </div>

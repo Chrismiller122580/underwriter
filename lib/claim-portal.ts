@@ -8,6 +8,12 @@ import { evaluateContractRules } from '@/lib/contract-rules';
 import { getContractDefinition } from '@/lib/contracts/registry';
 import type { ContractTypeOrUnknown } from '@/lib/contracts/types';
 import {
+  formatDocumentWaiverLabel,
+  isDocumentSlotSatisfied,
+  isDocumentWaived,
+  type DocumentWaiver,
+} from '@/lib/document-waivers';
+import {
   FILE_FIELD_LABELS,
   FILE_FIELDS,
 } from '@/lib/parse-claim-form';
@@ -27,11 +33,26 @@ export type ContractFilter = 'all' | ContractTypeOrUnknown;
 
 export function getMissingDocuments(claim: PortalClaim) {
   const attached = claim.claimDetails.attachedDocuments ?? {};
-  return FILE_FIELDS.filter((field) => !hasAttachedDocument(attached[field])).map(
-    (field) => ({
-      field,
-      label: FILE_FIELD_LABELS[field],
-    })
+  const waivers = claim.claimDetails.documentWaivers ?? {};
+  return FILE_FIELDS.filter(
+    (field) => !isDocumentSlotSatisfied(field, attached, waivers)
+  ).map((field) => ({
+    field,
+    label: FILE_FIELD_LABELS[field],
+  }));
+}
+
+export function getWaivedDocuments(claim: PortalClaim) {
+  const waivers = claim.claimDetails.documentWaivers ?? {};
+  return FILE_FIELDS.filter((field) => isDocumentWaived(waivers, field)).map(
+    (field) => {
+      const waiver = waivers[field] as DocumentWaiver;
+      return {
+        field,
+        label: formatDocumentWaiverLabel(field, waiver),
+        waiver,
+      };
+    }
   );
 }
 
@@ -66,13 +87,17 @@ export function getAttachedDocuments(claim: PortalClaim): AttachedDocumentLink[]
 
 export function getDocumentSlotStats(claim: PortalClaim) {
   const attached = claim.claimDetails.attachedDocuments ?? {};
+  const waivers = claim.claimDetails.documentWaivers ?? {};
   return {
     fileCount: countAttachedDocuments(attached),
     filledSlots: FILE_FIELDS.filter((field) =>
-      hasAttachedDocument(attached[field])
+      isDocumentSlotSatisfied(field, attached, waivers)
+    ).length,
+    waivedSlots: FILE_FIELDS.filter((field) =>
+      isDocumentWaived(waivers, field)
     ).length,
     missingSlots: FILE_FIELDS.filter(
-      (field) => !hasAttachedDocument(attached[field])
+      (field) => !isDocumentSlotSatisfied(field, attached, waivers)
     ).length,
   };
 }

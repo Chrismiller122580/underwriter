@@ -7,7 +7,8 @@ export type ClaimEventType =
   | 'info_requested'
   | 'info_cleared'
   | 'manual_decision'
-  | 'documents_attached';
+  | 'documents_attached'
+  | 'document_waived';
 
 export type ClaimEventRecord = {
   id: string;

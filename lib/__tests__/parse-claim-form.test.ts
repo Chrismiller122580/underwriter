@@ -32,6 +32,22 @@ describe('parseClaimJson', () => {
     expect(parsed.documents).toEqual({});
   });
 
+  it('accepts priorClaimsHistoryNone opt-out flag', () => {
+    const parsed = parseClaimJson({
+      ...validBase,
+      priorClaimsHistoryNone: true,
+    });
+    expect(parsed.priorClaimsHistoryNone).toBe(true);
+  });
+
+  it('accepts checkbox-style priorClaimsHistoryNone string', () => {
+    const parsed = parseClaimJson({
+      ...validBase,
+      priorClaimsHistoryNone: 'on',
+    });
+    expect(parsed.priorClaimsHistoryNone).toBe(true);
+  });
+
   it('ignores empty optional fields', () => {
     const parsed = parseClaimJson({
       ...validBase,

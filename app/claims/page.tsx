@@ -1,7 +1,13 @@
 import Link from 'next/link';
 import { ClaimsDashboard } from '@/components/ClaimsDashboard';
+import { canManageKnowledge, getSessionFromCookies } from '@/lib/auth';
 
-export default function ClaimsPage() {
+export default async function ClaimsPage() {
+  const session = await getSessionFromCookies();
+  const isSupervisor = Boolean(
+    session && canManageKnowledge(session.role)
+  );
+
   return (
     <main className="adjuster-page">
       <header className="adjuster-hero">
@@ -19,6 +25,14 @@ export default function ClaimsPage() {
             <Link href="/submit" className="button adjuster-cta">
               New Claim Intake
             </Link>
+            {isSupervisor ? (
+              <Link
+                href="/admin/toolbox"
+                className="button button-secondary adjuster-cta"
+              >
+                Admin Tools
+              </Link>
+            ) : null}
             <ol className="adjuster-workflow">
               <li>Scan</li>
               <li>Review</li>

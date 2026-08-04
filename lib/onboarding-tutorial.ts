@@ -85,7 +85,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Welcome to the workbench',
     body:
       'This is your underwriting command center. Claims arrive after staff intake. You triage by priority, gather missing documents, then decide with rules and AI.',
-    tip: 'Use Dashboard for the queue and Submit Claim for new intake. Supervisors also get the Toolbox.',
+    tip: 'Use Dashboard for the queue and Submit Claim for new intake. Supervisors also get Admin Tools.',
     href: '/claims',
     hrefLabel: 'Open Dashboard',
   },
@@ -152,12 +152,12 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'supervisor-toolbox',
     section: 'Supervisor',
-    title: 'Supervisor Toolbox',
+    title: 'Admin Tools',
     body:
-      'Supervisors open the Toolbox for portfolio overview, bulk AI operations, sandbox scenarios, and training controls that shape how Grok assists adjusters.',
-    tip: 'Adjusters do not see this area—keep training and bulk tools here.',
+      'Supervisors open Admin Tools for portfolio overview, bulk AI operations, sandbox scenarios, staff users, and knowledge training that shapes how Grok assists adjusters.',
+    tip: 'Adjusters do not see Admin Tools. Shared-password login must use the Supervisor role.',
     href: '/admin/toolbox',
-    hrefLabel: 'Open Toolbox',
+    hrefLabel: 'Open Admin Tools',
     roles: ['supervisor'],
   },
   {
@@ -168,7 +168,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
       'Upload underwriting knowledge documents and preview the system prompt Grok receives. Active knowledge is injected into AI underwriting context.',
     tip: 'Deactivate outdated docs so they stop influencing decisions.',
     href: '/admin/toolbox',
-    hrefLabel: 'Open Toolbox',
+    hrefLabel: 'Open Admin Tools',
     roles: ['supervisor'],
   },
   {
@@ -179,7 +179,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
       'Create named adjuster and supervisor accounts. Prefer named users in production over shared env passwords.',
     tip: 'Supervisors can manage users; adjusters cannot.',
     href: '/admin/toolbox',
-    hrefLabel: 'Open Toolbox',
+    hrefLabel: 'Open Admin Tools',
     roles: ['supervisor'],
   },
 ];

@@ -18,9 +18,26 @@ export const dynamic = 'force-dynamic';
 const loginSchema = z.object({
   email: z.string().email().optional().or(z.literal('')),
   password: z.string().min(1),
-  /** Used only for shared env-password fallback when no matching user. */
-  role: z.enum(['adjuster', 'supervisor']).default('adjuster'),
+  /**
+   * Used only for shared env-password fallback when no matching DB user.
+   * Omit to auto-detect (try supervisor password, then adjuster).
+   */
+  role: z.enum(['adjuster', 'supervisor']).optional(),
 });
+
+function tryLegacyEnvLogin(
+  password: string,
+  preferredRole?: UserRole
+): Session | null {
+  if (preferredRole) {
+    return verifyLoginPassword(password, preferredRole);
+  }
+  // Prefer supervisor match so shared-password setups can reach admin tools.
+  return (
+    verifyLoginPassword(password, 'supervisor') ??
+    verifyLoginPassword(password, 'adjuster')
+  );
+}
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
@@ -70,9 +87,9 @@ export async function POST(request: Request) {
     // 2) Legacy shared passwords (bootstrap / emergency)
     if (!session) {
       const configured = getConfiguredRoles();
-      const role = body.role as UserRole;
+      const preferredRole = body.role as UserRole | undefined;
 
-      if (role === 'supervisor' && !configured.supervisor) {
+      if (preferredRole === 'supervisor' && !configured.supervisor) {
         return NextResponse.json(
           {
             error: isProductionDeploy()
@@ -83,7 +100,7 @@ export async function POST(request: Request) {
         );
       }
 
-      if (role === 'adjuster' && !configured.adjuster && !email) {
+      if (preferredRole === 'adjuster' && !configured.adjuster && !email) {
         return NextResponse.json(
           {
             error:
@@ -93,7 +110,17 @@ export async function POST(request: Request) {
         );
       }
 
-      const legacy = verifyLoginPassword(password, role);
+      if (!configured.adjuster && !configured.supervisor && !email) {
+        return NextResponse.json(
+          {
+            error:
+              'No staff login is configured. Set ADJUSTER_PASSWORD / SUPERVISOR_PASSWORD or create user accounts.',
+          },
+          { status: 503 }
+        );
+      }
+
+      const legacy = tryLegacyEnvLogin(password, preferredRole);
       if (legacy) {
         session = {
           ...legacy,
@@ -104,7 +131,7 @@ export async function POST(request: Request) {
 
     if (!session) {
       logger.warn('Failed login attempt', {
-        role: body.role,
+        role: body.role ?? 'auto',
         hasEmail: Boolean(email),
       });
       return NextResponse.json(

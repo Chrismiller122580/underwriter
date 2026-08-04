@@ -40,7 +40,7 @@ const STAFF_LINKS: NavItem[] = [
 ];
 
 const SUPERVISOR_LINKS: NavItem[] = [
-  { href: '/admin/toolbox', label: 'Supervisor Toolbox' },
+  { href: '/admin/toolbox', label: 'Admin Tools' },
 ];
 
 function isActivePath(href: string, pathname: string): boolean {

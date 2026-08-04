@@ -19,10 +19,11 @@ export default async function SupervisorToolboxPage() {
         <div className="page-header page-header-stack">
           <div>
             <p className="badge">Freedom Warranty AI</p>
-            <h1 className="page-title">Supervisor Toolbox</h1>
+            <h1 className="page-title">Admin Tools</h1>
             <p className="page-intro">
-              Train Grok with underwriting knowledge, inspect prompts, test
-              scenarios, and run bulk AI operations across the claims portfolio.
+              Supervisor command center — train Grok with underwriting knowledge,
+              manage staff users, inspect prompts, test scenarios, and run bulk AI
+              operations across the claims portfolio.
             </p>
           </div>
         </div>

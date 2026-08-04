@@ -25,6 +25,14 @@ import {
 } from '@/lib/claim-documents';
 import { safeAppendClaimEvent } from '@/lib/claim-events';
 import {
+  buildDocumentWaiver,
+  DOCUMENT_WAIVER_REASON_LABELS,
+  isWaivableDocumentField,
+  type DocumentWaiverReason,
+  type DocumentWaiversMap,
+} from '@/lib/document-waivers';
+import { FILE_FIELD_LABELS, type FileField } from '@/lib/parse-claim-form';
+import {
   buildInfoRequest,
   type InfoRequestRecord,
 } from '@/lib/info-request';
@@ -71,6 +79,21 @@ export type ClaimRecord = {
     documents: string[];
     /** Per-slot URLs: one string or multiple when several files were attached. */
     attachedDocuments?: Record<string, string | string[]>;
+    /**
+     * Slots marked N/A (e.g. prior claims history when none exists).
+     * Satisfies the slot without a file attachment.
+     */
+    documentWaivers?: Partial<
+      Record<
+        string,
+        {
+          reason: 'none' | 'not_applicable' | 'unavailable';
+          note?: string;
+          attestedAt: string;
+          attestedBy?: string;
+        }
+      >
+    >;
     /** How intake data was obtained — fwis is preferred over screenshot. */
     dataSource?: 'fwis' | 'manual' | 'screenshot';
     fwisClaimId?: string;
@@ -403,6 +426,7 @@ export async function updateClaimDocuments(
 /**
  * Merge new document paths into an existing claim (post-submit attach).
  * Same-slot uploads append (multi-file); other slots are preserved.
+ * Uploading to a waived slot clears that waiver.
  */
 export async function attachClaimDocuments(
   id: string,
@@ -432,7 +456,15 @@ export async function attachClaimDocuments(
     }
   }
 
-  const updated = await updateClaimDocuments(id, merged);
+  // Clear waivers for slots that now have files
+  const nextWaivers: DocumentWaiversMap = {
+    ...(claim.claimDetails.documentWaivers ?? {}),
+  };
+  for (const [field] of entries) {
+    delete nextWaivers[field as FileField];
+  }
+
+  const updated = await updateClaimDocumentsAndWaivers(id, merged, nextWaivers);
 
   const fileCount = entries.reduce(
     (sum, [, value]) => sum + documentUrls(value).length,
@@ -452,6 +484,96 @@ export async function attachClaimDocuments(
       fileCount,
       previousCount: countAttachedDocuments(existing),
       newCount: countAttachedDocuments(merged),
+    },
+  });
+
+  return updated;
+}
+
+async function updateClaimDocumentsAndWaivers(
+  id: string,
+  documentPaths: Record<string, string | string[]>,
+  waivers: DocumentWaiversMap
+): Promise<ClaimRecord> {
+  await ensureSchema();
+  const sql = getSql();
+  const documents = JSON.stringify(flattenAttachedDocuments(documentPaths));
+  const attachedDocuments = JSON.stringify(documentPaths);
+  const documentWaivers = JSON.stringify(waivers);
+
+  const rows = (await sql`
+    UPDATE claims
+    SET claim_details = jsonb_set(
+          jsonb_set(
+            jsonb_set(claim_details, '{documents}', ${documents}::jsonb),
+            '{attachedDocuments}',
+            ${attachedDocuments}::jsonb
+          ),
+          '{documentWaivers}',
+          ${documentWaivers}::jsonb
+        ),
+        updated_at = NOW()
+    WHERE id = ${id}::uuid
+    RETURNING *
+  `) as ClaimRow[];
+
+  return mapRow(rows[0]);
+}
+
+/**
+ * Mark a document slot as not applicable / none on file (no upload required).
+ * Currently used for prior claims history when the vehicle has no prior claims.
+ */
+export async function waiveClaimDocument(
+  id: string,
+  field: string,
+  input: {
+    reason: DocumentWaiverReason;
+    note?: string;
+    attestedBy?: string;
+  }
+): Promise<ClaimRecord | null> {
+  if (!isWaivableDocumentField(field)) {
+    throw new Error(
+      `Document field "${field}" cannot be waived. Only prior claims history can be marked none.`
+    );
+  }
+
+  const claim = await getClaimById(id);
+  if (!claim) return null;
+
+  if (documentUrls(claim.claimDetails.attachedDocuments?.[field]).length > 0) {
+    throw new Error(
+      'This slot already has uploaded files. Remove them before marking none, or leave the uploads in place.'
+    );
+  }
+
+  const waiver = buildDocumentWaiver(input.reason, {
+    note: input.note,
+    attestedBy: input.attestedBy,
+  });
+
+  const attached = claim.claimDetails.attachedDocuments ?? {};
+  const waivers: DocumentWaiversMap = {
+    ...(claim.claimDetails.documentWaivers ?? {}),
+    [field]: waiver,
+  };
+
+  const updated = await updateClaimDocumentsAndWaivers(id, attached, waivers);
+
+  const label =
+    FILE_FIELD_LABELS[field as FileField] ?? field;
+  await safeAppendClaimEvent({
+    claimId: id,
+    eventType: 'document_waived',
+    summary: `${label} marked ${DOCUMENT_WAIVER_REASON_LABELS[input.reason].toLowerCase()}`,
+    actorEmail: input.attestedBy,
+    fromStatus: claim.status,
+    toStatus: updated.status,
+    detail: {
+      field,
+      reason: input.reason,
+      note: input.note,
     },
   });
 

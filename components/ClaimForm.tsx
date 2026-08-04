@@ -100,7 +100,8 @@ function buildFormData(
   files: Record<string, File[]>,
   contractType: ContractType | 'unknown',
   contractVariant: 'standard' | 'manufacturer_extension',
-  fwisMeta: FwisMeta | null
+  fwisMeta: FwisMeta | null,
+  priorClaimsHistoryNone: boolean
 ): FormData {
   const formData = new FormData();
   for (const field of EXTRACTABLE_FIELDS) {
@@ -108,6 +109,9 @@ function buildFormData(
   }
   formData.append('contractType', contractType);
   formData.append('contractVariant', contractVariant);
+  if (priorClaimsHistoryNone) {
+    formData.append('priorClaimsHistoryNone', 'true');
+  }
   if (fwisMeta?.fwisClaimId) formData.append('fwisClaimId', fwisMeta.fwisClaimId);
   if (fwisMeta?.fwisContractNumber) {
     formData.append('fwisContractNumber', fwisMeta.fwisContractNumber);
@@ -117,6 +121,8 @@ function buildFormData(
   }
   if (fwisMeta?.dataSource) formData.append('dataSource', fwisMeta.dataSource);
   for (const field of FILE_FIELDS) {
+    // Skip prior claims files when user attested none
+    if (field === 'priorClaimsHistory' && priorClaimsHistoryNone) continue;
     for (const file of files[field] ?? []) {
       formData.append(field, file);
     }
@@ -130,11 +136,13 @@ async function submitWithBlobUpload(
   contractType: ContractType | 'unknown',
   contractVariant: 'standard' | 'manufacturer_extension',
   fwisMeta: FwisMeta | null,
+  priorClaimsHistoryNone: boolean,
   onProgress: (percent: number) => void
 ): Promise<{ ok: boolean; status: number; body: unknown }> {
-  const flatFiles = FILE_FIELDS.flatMap((field) =>
-    (files[field] ?? []).map((file) => ({ field, file }))
-  );
+  const flatFiles = FILE_FIELDS.flatMap((field) => {
+    if (field === 'priorClaimsHistory' && priorClaimsHistoryNone) return [];
+    return (files[field] ?? []).map((file) => ({ field, file }));
+  });
   let completedUploads = 0;
 
   const uploadResults = await Promise.all(
@@ -178,6 +186,7 @@ async function submitWithBlobUpload(
       ...values,
       contractType,
       contractVariant,
+      priorClaimsHistoryNone: priorClaimsHistoryNone || undefined,
       documents,
       fwisClaimId: fwisMeta?.fwisClaimId ?? undefined,
       fwisContractNumber: fwisMeta?.fwisContractNumber ?? undefined,
@@ -237,6 +246,7 @@ export function ClaimForm() {
   const [files, setFiles] = useState<Record<string, File[]>>(
     Object.fromEntries(FILE_FIELDS.map((f) => [f, []])) as Record<string, File[]>
   );
+  const [priorClaimsHistoryNone, setPriorClaimsHistoryNone] = useState(false);
   const [fwisMeta, setFwisMeta] = useState<FwisMeta | null>(null);
   const [showScreenshotFallback, setShowScreenshotFallback] = useState(false);
 
@@ -378,10 +388,18 @@ export function ClaimForm() {
             contractType,
             contractVariant,
             meta,
+            priorClaimsHistoryNone,
             setProgress
           )
         : await submitWithProgress(
-            buildFormData(values, files, contractType, contractVariant, meta),
+            buildFormData(
+              values,
+              files,
+              contractType,
+              contractVariant,
+              meta,
+              priorClaimsHistoryNone
+            ),
             setProgress
           );
 
@@ -521,24 +539,57 @@ export function ClaimForm() {
         <div className="form-grid attach-docs-grid">
           {FILE_FIELDS.map((field) => {
             const selected = files[field] ?? [];
+            const isPriorClaims = field === 'priorClaimsHistory';
+            const waived = isPriorClaims && priorClaimsHistoryNone;
+
             return (
-              <FileInput
-                key={field}
-                id={field}
-                name={field}
-                label={FILE_FIELD_LABELS[field]}
-                multiple
-                hint="Multiple files allowed"
-                error={errors[field]}
-                selectedSummary={
-                  selected.length > 0
-                    ? `${selected.length} selected: ${selected.map((f) => f.name).join(', ')}`
-                    : undefined
-                }
-                onChange={(list) =>
-                  setFiles((prev) => ({ ...prev, [field]: list }))
-                }
-              />
+              <div key={field} className="doc-slot-tile">
+                <FileInput
+                  id={field}
+                  name={field}
+                  label={FILE_FIELD_LABELS[field]}
+                  multiple
+                  disabled={waived}
+                  hint={
+                    waived
+                      ? 'Opted out — no file needed'
+                      : 'Multiple files allowed'
+                  }
+                  error={errors[field]}
+                  selectedSummary={
+                    waived
+                      ? 'Marked: no prior claims history'
+                      : selected.length > 0
+                        ? `${selected.length} selected: ${selected.map((f) => f.name).join(', ')}`
+                        : undefined
+                  }
+                  onChange={(list) => {
+                    setFiles((prev) => ({ ...prev, [field]: list }));
+                    if (isPriorClaims && list.length > 0) {
+                      setPriorClaimsHistoryNone(false);
+                    }
+                  }}
+                />
+                {isPriorClaims && (
+                  <label className="doc-slot-optout">
+                    <input
+                      type="checkbox"
+                      checked={priorClaimsHistoryNone}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setPriorClaimsHistoryNone(checked);
+                        if (checked) {
+                          setFiles((prev) => ({
+                            ...prev,
+                            priorClaimsHistory: [],
+                          }));
+                        }
+                      }}
+                    />
+                    <span>No prior claims history (none on file)</span>
+                  </label>
+                )}
+              </div>
             );
           })}
         </div>

@@ -4,6 +4,17 @@ import { parsePolicyNumber } from '@/lib/contracts/policy-patterns';
 import { CONTRACT_TYPES } from '@/lib/contracts/types';
 import { isAllowedClaimDocumentUrl } from '@/lib/document-urls';
 
+const truthyFlag = z
+  .union([z.boolean(), z.enum(['true', 'on', '1', 'yes'])])
+  .optional()
+  .transform((value) => {
+    if (value === true) return true;
+    if (typeof value === 'string') {
+      return ['true', 'on', '1', 'yes'].includes(value.toLowerCase());
+    }
+    return false;
+  });
+
 const claimFormSchema = z.object({
   policyNumber: z.string().min(1),
   contractType: z.enum([...CONTRACT_TYPES, 'unknown']).default('unknown'),
@@ -28,6 +39,11 @@ const claimFormSchema = z.object({
   repairEstimate: z.coerce.number().positive(),
   detailedRepairDescription: z.string().min(1),
   repairShopInformation: z.string().min(1),
+  /**
+   * Opt out of Prior Claims History when the vehicle/claimant has none.
+   * Checkbox / flag — not a file upload.
+   */
+  priorClaimsHistoryNone: truthyFlag,
   /** FWIS linkage when claim was imported via API (preferred over screenshots). */
   fwisClaimId: z.string().optional(),
   fwisContractNumber: z.string().optional(),
@@ -44,6 +60,8 @@ export const FILE_FIELDS = [
   'inspectionReports',
   'serviceHistory',
 ] as const;
+
+export type FileField = (typeof FILE_FIELDS)[number];
 
 const documentUrlOrList = z.union([
   z.string().url(),
@@ -177,6 +195,17 @@ export function buildClaimDocument(
     parsed.dataSource ??
     (parsed.fwisClaimId || parsed.fwisClaimNumber ? 'fwis' : 'manual');
 
+  const documentWaivers =
+    parsed.priorClaimsHistoryNone && !documentPaths.priorClaimsHistory
+      ? {
+          priorClaimsHistory: {
+            reason: 'none' as const,
+            note: 'Attested no prior claims history on file at intake',
+            attestedAt: new Date().toISOString(),
+          },
+        }
+      : undefined;
+
   return {
     policyInformation: {
       policyNumber: parsed.policyNumber,
@@ -229,6 +258,7 @@ export function buildClaimDocument(
       amount: parsed.repairEstimate,
       documents: flattenAttachedDocuments(documentPaths),
       attachedDocuments: documentPaths,
+      ...(documentWaivers ? { documentWaivers } : {}),
     },
     status: 'pending' as const,
   };

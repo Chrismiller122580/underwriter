@@ -5,6 +5,10 @@ import {
   documentUrls,
   hasAttachedDocument,
 } from '@/lib/claim-documents';
+import {
+  isDocumentSlotSatisfied,
+  isDocumentWaived,
+} from '@/lib/document-waivers';
 import type { ClaimRecord } from '@/lib/claims-store';
 import {
   extractClaimDocumentTexts,
@@ -34,6 +38,7 @@ export type AnalyzeClaimOptions = {
 
 function buildDocumentStatus(claim: ClaimRecord) {
   const attached = claim.claimDetails.attachedDocuments ?? {};
+  const waivers = claim.claimDetails.documentWaivers ?? {};
   const provided = FILE_FIELDS.filter((field) =>
     hasAttachedDocument(attached[field])
   ).map((field) => ({
@@ -42,8 +47,16 @@ function buildDocumentStatus(claim: ClaimRecord) {
     urls: documentUrls(attached[field]),
     fileCount: documentUrls(attached[field]).length,
   }));
+  const waived = FILE_FIELDS.filter(
+    (field) => isDocumentWaived(waivers, field)
+  ).map((field) => ({
+    field,
+    label: FILE_FIELD_LABELS[field],
+    reason: waivers[field]?.reason,
+    note: waivers[field]?.note,
+  }));
   const missing = FILE_FIELDS.filter(
-    (field) => !hasAttachedDocument(attached[field])
+    (field) => !isDocumentSlotSatisfied(field, attached, waivers)
   ).map((field) => ({
     field,
     label: FILE_FIELD_LABELS[field],
@@ -51,6 +64,7 @@ function buildDocumentStatus(claim: ClaimRecord) {
 
   return {
     provided,
+    waived,
     missing,
     documentCount: provided.reduce((sum, item) => sum + item.fileCount, 0),
   };

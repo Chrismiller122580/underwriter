@@ -13,8 +13,10 @@ import {
   getDocumentSlotStats,
   getMissingDocuments,
   getUnderwritingReadiness,
+  getWaivedDocuments,
   type PortalClaim,
 } from '@/lib/claim-portal';
+import { isDocumentWaived } from '@/lib/document-waivers';
 import {
   FILE_FIELD_LABELS,
   FILE_FIELDS,
@@ -73,12 +75,14 @@ export function ClaimCard({
   const priority = claimPriorityScore(claim);
   const missingDocs = getMissingDocuments(claim);
   const attachedDocs = getAttachedDocuments(claim);
+  const waivedDocs = getWaivedDocuments(claim);
   const docStats = getDocumentSlotStats(claim);
   const uploadSlots = FILE_FIELDS.map((field) => ({
     field,
     label: FILE_FIELD_LABELS[field],
     existingCount: documentUrls(claim.claimDetails.attachedDocuments?.[field])
       .length,
+    waived: isDocumentWaived(claim.claimDetails.documentWaivers, field),
   }));
   const contractBrief = getContractBrief(claim.policyInformation.contractType);
   const rulePreview = getContractRulePreview(claim);
@@ -335,6 +339,16 @@ export function ClaimCard({
                   received from the claimant or shop.
                 </p>
               )}
+              {waivedDocs.length > 0 && (
+                <>
+                  <p className="claim-panel-subhead">Opted out / none on file</p>
+                  <ul className="claim-doc-waived">
+                    {waivedDocs.map((doc) => (
+                      <li key={doc.field}>{doc.label}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
               {missingDocs.length > 0 && (
                 <>
                   <p className="claim-panel-subhead">
@@ -350,6 +364,7 @@ export function ClaimCard({
               <AttachDocuments
                 claimId={claim._id}
                 slots={uploadSlots}
+                documentWaivers={claim.claimDetails.documentWaivers}
                 onComplete={(result) => {
                   onClaimUpdated({
                     _id: claim._id,

@@ -2020,6 +2020,62 @@ html.dark .fwis-import-section {
   font-size: 13px;
 }
 
+.attach-docs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.doc-slot-tile {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 118px;
+  padding: 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  background: var(--bg-surface, #fff);
+  box-sizing: border-box;
+}
+
+.attach-docs-grid > .doc-slot-tile .file-input-field {
+  flex: 1;
+  margin-bottom: 0;
+  padding: 0;
+  border: none;
+  min-height: 0;
+  background: transparent;
+}
+
+.file-input-field.is-disabled {
+  opacity: 0.72;
+}
+
+.doc-slot-optout {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.doc-slot-optout input {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.claim-doc-waived {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+  color: #0f766e;
+}
+
 .ai-rec-pill {
   font-size: 11px;
   font-weight: 700;
@@ -2491,6 +2547,16 @@ html.dark .fwis-import-section {
   color: #b00020;
 }
 
+.login-shared-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin: 12px 0;
+  cursor: pointer;
+  color: var(--text-secondary, #475569);
+}
+
 .login-role-toggle {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2842,7 +2908,8 @@ html.dark .fwis-import-section {
 }
 
 [data-theme='dark'] .attach-docs-grid .file-input-field,
-[data-theme='dark'] .attach-docs-grid .form-field {
+[data-theme='dark'] .attach-docs-grid .form-field,
+[data-theme='dark'] .doc-slot-tile {
   background: var(--bg-surface);
   border-color: var(--border-default);
 }
@@ -2853,6 +2920,14 @@ html.dark .fwis-import-section {
 
 [data-theme='dark'] .file-input-selected {
   color: var(--text-secondary);
+}
+
+[data-theme='dark'] .doc-slot-optout {
+  color: var(--text-secondary);
+}
+
+[data-theme='dark'] .claim-doc-waived {
+  color: #5eead4;
 }
 
 [data-theme='dark'] .claim-fact-value,

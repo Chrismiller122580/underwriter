@@ -9,6 +9,8 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState<LoginRole>('supervisor');
+  const [useSharedPassword, setUseSharedPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -23,8 +25,10 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
         body: JSON.stringify({
-          email: email.trim(),
+          email: useSharedPassword ? '' : email.trim(),
           password: password.trim(),
+          // Named users: role comes from DB. Shared password: send chosen role.
+          ...(useSharedPassword ? { role } : {}),
         }),
       });
 
@@ -38,9 +42,12 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
         throw new Error(data.error ?? 'Invalid credentials');
       }
 
+      // Supervisors land in the toolbox unless they asked for a specific next page.
       const destination =
         data.role === 'supervisor' &&
-        (redirectTo === '/claims' || redirectTo === '/admin/knowledge')
+        (redirectTo === '/claims' ||
+          redirectTo === '/' ||
+          redirectTo === '/admin/knowledge')
           ? '/admin/toolbox'
           : redirectTo;
 
@@ -58,18 +65,26 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
 
   return (
     <form onSubmit={handleSubmit} style={{ marginTop: 24 }}>
-      <div className="form-field">
-        <label htmlFor="email">Work email</label>
-        <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          autoComplete="username"
-          placeholder="you@company.com"
-        />
-      </div>
+      <p className="form-hint">
+        Sign in with your staff email and password. Seeded defaults use{' '}
+        <code>adjuster@fwcut.local</code> / <code>supervisor@fwcut.local</code>.
+        Supervisors get the full admin toolbox.
+      </p>
+
+      {!useSharedPassword && (
+        <div className="form-field">
+          <label htmlFor="email">Work email</label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required={!useSharedPassword}
+            autoComplete="username"
+            placeholder="you@company.com"
+          />
+        </div>
+      )}
 
       <div className="form-field">
         <label htmlFor="password">Password</label>
@@ -82,6 +97,52 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
           autoComplete="current-password"
         />
       </div>
+
+      <label className="login-shared-toggle">
+        <input
+          type="checkbox"
+          checked={useSharedPassword}
+          onChange={(e) => {
+            setUseSharedPassword(e.target.checked);
+            setError(null);
+          }}
+        />{' '}
+        Use shared role password (legacy bootstrap)
+      </label>
+
+      {useSharedPassword && (
+        <>
+          <div className="login-role-toggle" role="group" aria-label="Sign in as">
+            <button
+              type="button"
+              className={role === 'adjuster' ? 'login-role active' : 'login-role'}
+              onClick={() => {
+                setRole('adjuster');
+                setError(null);
+              }}
+            >
+              Adjuster
+            </button>
+            <button
+              type="button"
+              className={
+                role === 'supervisor' ? 'login-role active' : 'login-role'
+              }
+              onClick={() => {
+                setRole('supervisor');
+                setError(null);
+              }}
+            >
+              Supervisor
+            </button>
+          </div>
+          <p className="form-hint">
+            Matches <code>ADJUSTER_PASSWORD</code> /{' '}
+            <code>SUPERVISOR_PASSWORD</code> when named users are unavailable.
+            Choose <strong>Supervisor</strong> for admin tools.
+          </p>
+        </>
+      )}
 
       {error && <p className="form-error">{error}</p>}
 

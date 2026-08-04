@@ -1,14 +1,16 @@
 import { countAttachedDocuments, hasAttachedDocument } from '@/lib/claim-documents';
 import type { ClaimRecord } from '@/lib/claims-store';
 import type { AiAnalysis } from '@/lib/ai-types';
+import { isDocumentSlotSatisfied } from '@/lib/document-waivers';
 import { FILE_FIELD_LABELS, FILE_FIELDS } from '@/lib/parse-claim-form';
 
 function missingDocumentRequests(claim: ClaimRecord): string[] {
   const attached = claim.claimDetails.attachedDocuments ?? {};
+  const waivers = claim.claimDetails.documentWaivers ?? {};
   const requests: string[] = [];
 
   for (const field of FILE_FIELDS) {
-    if (hasAttachedDocument(attached[field])) continue;
+    if (isDocumentSlotSatisfied(field, attached, waivers)) continue;
 
     switch (field) {
       case 'maintenanceRecords':
@@ -24,7 +26,7 @@ function missingDocumentRequests(claim: ClaimRecord): string[] {
         break;
       case 'priorClaimsHistory':
         requests.push(
-          `Please provide ${FILE_FIELD_LABELS[field]} to confirm the component was not previously replaced.`
+          `Please provide ${FILE_FIELD_LABELS[field]} to confirm the component was not previously replaced, or attest that there is no prior claims history.`
         );
         break;
       case 'proofOfOwnership':

@@ -17,8 +17,9 @@ export default async function LoginPage({
         <p className="badge">Staff Access</p>
         <h1 className="page-title">Sign In</h1>
         <p className="page-intro">
-          Sign in with your staff email and password. Supervisors can manage
-          users, AI knowledge, and the full toolbox.
+          Sign in with your staff email and password. Supervisors can open{' '}
+          <strong>Admin Tools</strong> to manage users, AI knowledge, sandbox,
+          and bulk operations.
         </p>
         <LoginForm redirectTo={params.next ?? '/claims'} />
       </div>
