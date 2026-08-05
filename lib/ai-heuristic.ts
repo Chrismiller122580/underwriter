@@ -13,6 +13,11 @@ function missingDocumentRequests(claim: ClaimRecord): string[] {
     if (isDocumentSlotSatisfied(field, attached, waivers)) continue;
 
     switch (field) {
+      case 'repairOrder':
+        requests.push(
+          `Please provide the ${FILE_FIELD_LABELS[field]} (RO) from the repair facility with line-item parts and labor.`
+        );
+        break;
       case 'maintenanceRecords':
       case 'serviceHistory':
         requests.push(

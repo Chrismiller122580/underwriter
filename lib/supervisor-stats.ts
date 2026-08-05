@@ -154,6 +154,7 @@ export function getContractReference() {
       { types: ['vital', 'drive', 'complete'], days: 30, miles: 1000 },
     ],
     documentTypes: [
+      'Repair Order',
       'Proof of Ownership',
       'Maintenance Records',
       'Prior Claims History',

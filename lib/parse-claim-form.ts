@@ -54,6 +54,7 @@ const claimFormSchema = z.object({
 export type ParsedClaimForm = z.infer<typeof claimFormSchema>;
 
 export const FILE_FIELDS = [
+  'repairOrder',
   'proofOfOwnership',
   'maintenanceRecords',
   'priorClaimsHistory',
@@ -91,6 +92,7 @@ export const claimJsonSchema = claimFormSchema.extend({
 export type ParsedClaimJson = z.infer<typeof claimJsonSchema>;
 
 export const FILE_FIELD_LABELS: Record<(typeof FILE_FIELDS)[number], string> = {
+  repairOrder: 'Repair Order',
   proofOfOwnership: 'Proof of Ownership',
   maintenanceRecords: 'Maintenance Records',
   priorClaimsHistory: 'Prior Claims History',

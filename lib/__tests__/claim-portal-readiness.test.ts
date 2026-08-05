@@ -103,6 +103,7 @@ describe('getUnderwritingReadiness — supporting documents', () => {
 
   it('does not warn about empty slots when all documents are attached', () => {
     const attached = {
+      repairOrder: 'uploads/11111111-1111-1111-1111-111111111111/ro.pdf',
       proofOfOwnership: 'uploads/11111111-1111-1111-1111-111111111111/a.pdf',
       maintenanceRecords: 'uploads/11111111-1111-1111-1111-111111111111/b.pdf',
       priorClaimsHistory: 'uploads/11111111-1111-1111-1111-111111111111/c.pdf',
