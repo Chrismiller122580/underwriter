@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AiInsights } from '@/components/AiInsights';
 import { KnowledgeManager } from '@/components/KnowledgeManager';
@@ -398,7 +399,14 @@ function OverviewPanel({
             <tbody>
               {overview.claims.recent.map((claim) => (
                 <tr key={claim.id}>
-                  <td>{claim.name}</td>
+                  <td>
+                    <Link
+                      href={`/claims/${claim.id}`}
+                      className="toolbox-claim-link"
+                    >
+                      {claim.name}
+                    </Link>
+                  </td>
                   <td>{claim.contractType}</td>
                   <td>${claim.amount.toLocaleString()}</td>
                   <td>{claim.status.replace('_', ' ')}</td>

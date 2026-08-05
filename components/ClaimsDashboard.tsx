@@ -17,6 +17,11 @@ import {
 } from '@/lib/client-api';
 import type { ClaimPortalStats } from '@/lib/claims-store';
 import { CONTRACT_TYPES } from '@/lib/contracts/types';
+import {
+  DEFAULT_QUEUE_PREFS,
+  readQueuePreferences,
+  writeQueuePreferences,
+} from '@/lib/queue-preferences';
 import { ClaimCard, type ClaimPatch } from './ClaimCard';
 
 const QUEUE_FILTERS: { id: ClaimFilter; label: string; tone?: 'pending' | 'denied' }[] = [
@@ -41,12 +46,30 @@ export function ClaimsDashboard() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<ClaimFilter>('action_needed');
-  const [contractFilter, setContractFilter] = useState<ContractFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<ClaimFilter>(
+    DEFAULT_QUEUE_PREFS.statusFilter
+  );
+  const [contractFilter, setContractFilter] = useState<ContractFilter>(
+    DEFAULT_QUEUE_PREFS.contractFilter
+  );
   const [sortBy, setSortBy] = useState<'priority' | 'newest' | 'risk' | 'amount'>(
-    'priority'
+    DEFAULT_QUEUE_PREFS.sortBy
   );
   const [search, setSearch] = useState('');
+  const [prefsReady, setPrefsReady] = useState(false);
+
+  useEffect(() => {
+    const prefs = readQueuePreferences();
+    setStatusFilter(prefs.statusFilter);
+    setContractFilter(prefs.contractFilter);
+    setSortBy(prefs.sortBy);
+    setPrefsReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!prefsReady) return;
+    writeQueuePreferences({ statusFilter, contractFilter, sortBy });
+  }, [statusFilter, contractFilter, sortBy, prefsReady]);
 
   const loadClaims = useCallback(async (cursor?: string) => {
     setError(null);
@@ -238,6 +261,9 @@ export function ClaimsDashboard() {
         <section className="adjuster-sidebar-tip">
           <h2 className="adjuster-sidebar-title">Workflow</h2>
           <ol>
+            <li>
+              <strong>Open claim</strong> for a full shareable workspace
+            </li>
             <li>Run <strong>AI Scan</strong> on unscanned claims</li>
             <li>Review contract rules, docs, and AI flags</li>
             <li>Request missing info if needed</li>
@@ -380,12 +406,12 @@ export function ClaimsDashboard() {
           </p>
         ) : (
           <div className="claims-list adjuster-claims-list">
-            {visibleClaims.map((claim, index) => (
+            {visibleClaims.map((claim) => (
               <ClaimCard
                 key={claim._id}
                 claim={claim}
                 onClaimUpdated={patchClaim}
-                defaultExpanded={index === 0 && statusFilter === 'action_needed'}
+                variant="queue"
               />
             ))}
           </div>

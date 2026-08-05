@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { UnderwriteButton } from '@/app/claims/UnderwriteButton';
 import { getContractDisplayName } from '@/lib/contracts/registry';
@@ -41,6 +42,8 @@ export type ClaimPatch = {
   updatedAt?: string;
 };
 
+export type ClaimCardVariant = 'queue' | 'detail';
+
 function statusClass(status: string) {
   return `status-pill status-${status}`;
 }
@@ -67,12 +70,16 @@ export function ClaimCard({
   claim,
   onClaimUpdated,
   defaultExpanded = false,
+  variant = 'queue',
 }: {
   claim: PortalClaim;
   onClaimUpdated: (patch: ClaimPatch) => void;
   defaultExpanded?: boolean;
+  /** queue = compact workbench row; detail = full claim page */
+  variant?: ClaimCardVariant;
 }) {
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const isDetail = variant === 'detail';
+  const [expanded, setExpanded] = useState(defaultExpanded || isDetail);
   const [timelineKey, setTimelineKey] = useState(0);
   const priority = claimPriorityScore(claim);
   const missingDocs = getMissingDocuments(claim);
@@ -90,25 +97,41 @@ export function ClaimCard({
   const rulePreview = getContractRulePreview(claim);
   const readiness = getUnderwritingReadiness(claim);
   const needsAction = claimNeedsAction(claim);
+  const detailHref = `/claims/${claim._id}`;
+  const showExpanded = isDetail || expanded;
+
+  function bumpTimeline() {
+    setTimelineKey((k) => k + 1);
+  }
 
   return (
     <article
       className={`claim-card claim-workbench-card${
         needsAction ? ' claim-needs-action' : ''
-      }`}
+      }${isDetail ? ' claim-detail-card' : ' claim-queue-card'}`}
     >
       <div className="claim-card-top">
         <div className="claim-card-identity">
           <div className="claim-card-title-row">
-            <h3>{claim.claimantInformation.name}</h3>
+            {isDetail ? (
+              <h2 className="claim-detail-title">
+                {claim.claimantInformation.name}
+              </h2>
+            ) : (
+              <h3>
+                <Link href={detailHref} className="claim-title-link">
+                  {claim.claimantInformation.name}
+                </Link>
+              </h3>
+            )}
             {needsAction && (
               <span className="claim-priority-badge">Priority {priority}</span>
             )}
           </div>
           <p className="claim-meta">
             {claim.vehicleInfo.year} {claim.vehicleInfo.make}{' '}
-            {claim.vehicleInfo.model} · {claim.vehicleInfo.odometerReading.toLocaleString()}{' '}
-            mi
+            {claim.vehicleInfo.model} ·{' '}
+            {claim.vehicleInfo.odometerReading.toLocaleString()} mi
           </p>
           <p className="claim-meta claim-meta-sub">VIN {claim.vehicleInfo.vin}</p>
         </div>
@@ -154,11 +177,11 @@ export function ClaimCard({
         )}
         {(claim.aiAnalysis?.informationRequests?.length ?? 0) > 0 &&
           !(claim.infoRequest?.items?.length ?? 0) && (
-          <span className="claim-signal claim-signal-info">
-            {claim.aiAnalysis!.informationRequests!.length} AI info suggest
-            {claim.aiAnalysis!.informationRequests!.length === 1 ? '' : 's'}
-          </span>
-        )}
+            <span className="claim-signal claim-signal-info">
+              {claim.aiAnalysis!.informationRequests!.length} AI info suggest
+              {claim.aiAnalysis!.informationRequests!.length === 1 ? '' : 's'}
+            </span>
+          )}
         {getOpenGuidelineConflicts(claim).length > 0 && (
           <span className="claim-signal claim-signal-guideline">
             Guideline flag
@@ -172,7 +195,9 @@ export function ClaimCard({
         {!claim.aiAnalysis && (
           <span className="claim-signal claim-signal-pending-ai">No AI scan</span>
         )}
-        <span className={`claim-signal claim-signal-rule rule-${rulePreview.decision}`}>
+        <span
+          className={`claim-signal claim-signal-rule rule-${rulePreview.decision}`}
+        >
           Rules: {rulePreview.decision}
         </span>
         {rulePreview.componentCoverage && (
@@ -191,9 +216,7 @@ export function ClaimCard({
       <div className="claim-fact-strip">
         <div className="claim-fact">
           <span className="claim-fact-label">Tracking</span>
-          <span className="claim-fact-value">
-            {claim.publicToken ?? '—'}
-          </span>
+          <span className="claim-fact-value">{claim.publicToken ?? '—'}</span>
         </div>
         {(claim.claimDetails.fwisClaimNumber ||
           claim.claimDetails.dataSource === 'fwis') && (
@@ -208,7 +231,9 @@ export function ClaimCard({
         )}
         <div className="claim-fact">
           <span className="claim-fact-label">Policy</span>
-          <span className="claim-fact-value">{claim.policyInformation.policyNumber}</span>
+          <span className="claim-fact-value">
+            {claim.policyInformation.policyNumber}
+          </span>
           {claim.policyInformation.contractType &&
             claim.policyInformation.contractType !== 'unknown' && (
               <span
@@ -231,8 +256,8 @@ export function ClaimCard({
           <span className="claim-fact-label">Documents</span>
           <span className="claim-fact-value">
             {docStats.fileCount} file{docStats.fileCount === 1 ? '' : 's'} ·{' '}
-            {docStats.missingSlots} slot{docStats.missingSlots === 1 ? '' : 's'}{' '}
-            empty
+            {docStats.missingSlots} slot
+            {docStats.missingSlots === 1 ? '' : 's'} empty
           </span>
         </div>
         <div className="claim-fact">
@@ -242,15 +267,18 @@ export function ClaimCard({
       </div>
 
       <p className="claim-repair-snippet">
-        <strong>Repair:</strong> {claim.repairInformation.detailedRepairDescription}
+        <strong>Repair:</strong>{' '}
+        {claim.repairInformation.detailedRepairDescription}
       </p>
 
-      {expanded && (
+      {showExpanded && (
         <div className="claim-expanded">
           <div className="claim-expanded-grid">
             <section className="claim-panel claim-panel-rules">
               <h4>Contract rules engine</h4>
-              <p className={`rule-decision rule-decision-${rulePreview.decision}`}>
+              <p
+                className={`rule-decision rule-decision-${rulePreview.decision}`}
+              >
                 {rulePreview.decision.toUpperCase()}
               </p>
               <p>{rulePreview.reason}</p>
@@ -263,7 +291,8 @@ export function ClaimCard({
               )}
               {rulePreview.denialCategory && (
                 <p className="claim-panel-meta">
-                  Denial category: {rulePreview.denialCategory.replace('_', ' ')}
+                  Denial category:{' '}
+                  {rulePreview.denialCategory.replace('_', ' ')}
                 </p>
               )}
               {rulePreview.componentCoverage && (
@@ -292,8 +321,8 @@ export function ClaimCard({
                 </p>
               )}
               <p className="claim-panel-meta">
-                Aggregate LOL is evaluated at underwrite time from prior claims on
-                this policy number.
+                Aggregate LOL is evaluated at underwrite time from prior claims
+                on this policy number.
               </p>
             </section>
 
@@ -306,7 +335,8 @@ export function ClaimCard({
                 ))}
               </ul>
               <p className="claim-panel-meta">
-                Effective {formatDate(claim.policyInformation.policyEffectiveDate)} –{' '}
+                Effective{' '}
+                {formatDate(claim.policyInformation.policyEffectiveDate)} –{' '}
                 {formatDate(claim.policyInformation.policyExpirationDate)}
               </p>
             </section>
@@ -373,7 +403,7 @@ export function ClaimCard({
                     claimDetails: result.claimDetails,
                     updatedAt: result.updatedAt ?? new Date().toISOString(),
                   });
-                  setTimelineKey((k) => k + 1);
+                  bumpTimeline();
                 }}
               />
             </section>
@@ -401,7 +431,7 @@ export function ClaimCard({
                   guidelineSkips: skips,
                   updatedAt: new Date().toISOString(),
                 });
-                setTimelineKey((k) => k + 1);
+                bumpTimeline();
               }}
             />
           )}
@@ -415,7 +445,9 @@ export function ClaimCard({
                 ))}
               </ul>
               {claim.infoRequest.note && (
-                <p className="claim-panel-meta">Note: {claim.infoRequest.note}</p>
+                <p className="claim-panel-meta">
+                  Note: {claim.infoRequest.note}
+                </p>
               )}
               {claim.infoRequest.requestedAt && (
                 <span className="claim-panel-meta">
@@ -453,13 +485,22 @@ export function ClaimCard({
       )}
 
       <div className="claim-card-actions">
-        <button
-          type="button"
-          className="link-button claim-expand-toggle"
-          onClick={() => setExpanded((value) => !value)}
-        >
-          {expanded ? 'Hide full context' : 'Show full claim context'}
-        </button>
+        {!isDetail ? (
+          <div className="claim-queue-nav">
+            <Link href={detailHref} className="button claim-open-detail">
+              Open claim
+            </Link>
+            <button
+              type="button"
+              className="link-button claim-expand-toggle"
+              onClick={() => setExpanded((value) => !value)}
+            >
+              {expanded ? 'Hide quick context' : 'Quick expand'}
+            </button>
+          </div>
+        ) : (
+          <span className="claim-detail-actions-label">Decision tools</span>
+        )}
 
         <div className="claim-action-group">
           <AnalyzeButton
@@ -471,7 +512,7 @@ export function ClaimCard({
                 aiAnalysis: result.aiAnalysis,
                 updatedAt: new Date().toISOString(),
               });
-              setTimelineKey((k) => k + 1);
+              bumpTimeline();
             }}
             label={claim.aiAnalysis ? 'Refresh AI Scan' : 'Run AI Scan'}
           />
@@ -489,7 +530,7 @@ export function ClaimCard({
                   infoRequest: result.infoRequest,
                   updatedAt: result.updatedAt ?? new Date().toISOString(),
                 });
-                setTimelineKey((k) => k + 1);
+                bumpTimeline();
               }}
             />
           )}
@@ -504,12 +545,13 @@ export function ClaimCard({
                   underwriting: result.underwriting,
                   updatedAt: new Date().toISOString(),
                 });
-                setTimelineKey((k) => k + 1);
+                bumpTimeline();
               }}
             />
           ) : (
             <span className="done-label">
-              {readiness.blockers[0] ?? `${claim.status} — underwriting unavailable`}
+              {readiness.blockers[0] ??
+                `${claim.status} — underwriting unavailable`}
             </span>
           )}
           <ManualDecisionButton
@@ -523,7 +565,7 @@ export function ClaimCard({
                 infoRequest: result.infoRequest,
                 updatedAt: result.updatedAt ?? new Date().toISOString(),
               });
-              setTimelineKey((k) => k + 1);
+              bumpTimeline();
             }}
           />
         </div>

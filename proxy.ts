@@ -18,6 +18,9 @@ export async function proxy(request: NextRequest) {
     pathname === '/api/claims/extract' ||
     pathname === '/api/claims/lookup-policy' ||
     pathname === '/api/upload' ||
+    // Single claim detail (queue → /claims/[id])
+    (Boolean(pathname.match(/^\/api\/claims\/[^/]+$/)) &&
+      request.method === 'GET') ||
     (pathname.match(/^\/api\/claims\/[^/]+\/documents(\/[^/]+)?$/) &&
       (request.method === 'GET' || request.method === 'POST')) ||
     (pathname.match(/^\/api\/claims\/[^/]+\/documents\/waive$/) &&

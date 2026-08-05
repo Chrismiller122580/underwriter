@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { LoginWelcomeBanner } from '@/components/LoginWelcomeBanner';
 import { SupervisorToolbox } from '@/components/SupervisorToolbox';
 import { canManageKnowledge, getSessionFromCookies } from '@/lib/auth';
 
@@ -15,6 +16,7 @@ export default async function SupervisorToolboxPage() {
 
   return (
     <main className="container-wide page-main">
+      <LoginWelcomeBanner />
       <div className="card toolbox-shell">
         <div className="page-header page-header-stack">
           <div>
@@ -23,7 +25,8 @@ export default async function SupervisorToolboxPage() {
             <p className="page-intro">
               Supervisor command center — train Grok with underwriting knowledge,
               manage staff users, inspect prompts, test scenarios, and run bulk AI
-              operations across the claims portfolio.
+              operations across the claims portfolio. Open any recent claim for a
+              full shareable underwriting workspace.
             </p>
           </div>
         </div>

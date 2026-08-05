@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
+import { writeLoginBanner } from '@/lib/login-banner';
 
 type LoginRole = 'adjuster' | 'supervisor';
 
@@ -37,13 +38,24 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
         error?: string;
         role?: LoginRole;
         name?: string;
+        email?: string;
       };
 
       if (!response.ok) {
         throw new Error(data.error ?? 'Invalid credentials');
       }
 
+      if (data.role === 'adjuster' || data.role === 'supervisor') {
+        writeLoginBanner({
+          role: data.role,
+          name: data.name,
+          email: data.email,
+          at: Date.now(),
+        });
+      }
+
       // Supervisors land in the toolbox unless they asked for a specific next page.
+      // Claim detail deep-links always honor `next`.
       const destination =
         data.role === 'supervisor' &&
         (redirectTo === '/claims' ||
@@ -69,8 +81,10 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
       <p className="form-hint">
         Sign in with your staff email and password. Seeded defaults use{' '}
         <code>adjuster@fwcut.local</code> (Reviewer) /{' '}
-        <code>supervisor@fwcut.local</code>. The Reviewer role is the claim
-        underwriting role (same as adjuster). Supervisors get Admin Tools.
+        <code>supervisor@fwcut.local</code>. Reviewer = claim underwriting.
+        Supervisor = underwriting <strong>plus</strong> Admin Tools. Role comes
+        from your account — not a toggle — unless you use the shared password
+        option below.
       </p>
 
       {!useSharedPassword && (

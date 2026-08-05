@@ -10,8 +10,9 @@ Vehicle warranty claims intake, document upload, and automated policy underwriti
 
 | Feature | Description |
 |---------|-------------|
-| **Claim submission** | Public form at `/submit` with document upload |
-| **Adjuster auth** | Password-protected dashboard and underwriting |
+| **Claim intake** | Staff-only form at `/submit` with document upload |
+| **Claim workspace** | Shareable claim detail at `/claims/[id]` (queue + full underwriting) |
+| **Staff auth** | Password-protected dashboard and underwriting (Reviewer / Supervisor) |
 | **Rate limiting** | 10 claim submissions per hour per IP |
 | **Structured logging** | JSON logs (visible in Vercel Runtime Logs) |
 | **Screenshot autofill** | Upload a portal screenshot — AI extracts and fills the claim form |
@@ -92,8 +93,8 @@ npm run build     # production build (Turbopack)
 | Role | Access |
 |------|--------|
 | **Public** | Check claim status at `/status` with tracking code + last name |
-| **Adjuster** | Named user or shared password — dashboard & underwriting |
-| **Supervisor** | Named user or shared password — users, knowledge, toolbox |
+| **Reviewer** (adjuster) | Named user or shared password — queue, claim workspace, underwriting |
+| **Supervisor** | Same as reviewer **plus** Admin Tools (users, knowledge, toolbox) |
 
 ---
 
@@ -105,6 +106,7 @@ npm run build     # production build (Turbopack)
 | `POST /api/claims/lookup-policy` | Public (rate limited) | Resolve contract type from policy number |
 | `POST /api/claims/extract` | Public (rate limited) | Extract form data from portal screenshot |
 | `GET /api/claims` | Adjuster | List claims |
+| `GET /api/claims/:id` | Adjuster | Single claim detail |
 | `GET /api/claims/stats` | Adjuster | Queue stats for dashboard |
 | `POST /api/claims/:id/underwrite` | Adjuster | AI + rule-based underwriting |
 | `POST /api/claims/:id/analyze` | Adjuster | Run/re-run AI analysis |

@@ -66,4 +66,9 @@ describe('stepsForRole', () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(TUTORIAL_STEPS.length).toBeGreaterThanOrEqual(11);
   });
+
+  it('describes the shareable claim workspace on the claim-card step', () => {
+    const step = TUTORIAL_STEPS.find((s) => s.id === 'claim-card');
+    expect(step?.body).toMatch(/Open claim|\/claims\/\[id\]|workspace/i);
+  });
 });

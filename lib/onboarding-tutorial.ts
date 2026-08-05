@@ -85,7 +85,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Welcome to the workbench',
     body:
       'This is your underwriting command center. Claims arrive after staff intake. You triage by priority, gather missing documents, then decide with rules and AI.',
-    tip: 'Use Dashboard for the queue and Submit Claim for new intake. Reviewers underwrite claims; supervisors also get Admin Tools. Reviewer = adjuster role.',
+    tip: 'Use Dashboard for the queue and Submit Claim for new intake. Reviewers underwrite claims; supervisors also get Admin Tools (nav + post-login banner). Reviewer = adjuster role.',
     href: '/claims',
     hrefLabel: 'Open Dashboard',
   },
@@ -102,9 +102,9 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'claim-card',
     section: 'Queue',
-    title: 'Read the claim card',
+    title: 'Open a claim workspace',
     body:
-      'Expand a claim for contract context, documentation, AI insights, and history. Check attachments and guideline flags before you act.',
+      'Each queue row shows priority, risk, and next step. Click the claimant name or Open claim for a full shareable workspace (/claims/[id]) with rules, docs, AI, timeline, and decisions. Quick expand still works on the queue for a glance.',
     tip: 'If docs are thin or conflict, request info instead of forcing a decision.',
   },
   {
